@@ -1,0 +1,14 @@
+# Logs
+*.log
+
+# Build droppings
+bin/
+obj/
+*.user
+
+# Local scratch
+.vs/
+
+# OS junk
+Thumbs.db
+Desktop.ini
