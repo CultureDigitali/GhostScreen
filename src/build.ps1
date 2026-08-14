@@ -32,6 +32,7 @@ Write-Host "Compilo GhostScreen 95 -> $out"
     /resource:$(Join-Path $drvDir 'copy_settings.cmd'),Res.copy_settings.cmd `
     /resource:$(Join-Path $assetDir 'banner.png'),Res.banner.png `
     /resource:$(Join-Path $assetDir 'logo.png'),Res.logo.png `
+    /resource:$(Join-Path $srcDir 'lang.txt'),Res.lang.txt `
     /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Management.dll `
     $(Join-Path $srcDir 'GhostScreen.cs')
 

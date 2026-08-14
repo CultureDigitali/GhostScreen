@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GhostScreen 95 — The display that doesn't exist</title>
-<meta name="description" content="GhostScreen 95: a single-file Windows 95-styled tool that installs a virtual display on headless Windows PCs and unlocks real resolutions up to 4K. No monitor needed. By Luigi Strazzullo for Culture Digitali Srl.">
-<meta name="keywords" content="ghostscreen, virtual display, headless pc, virtual monitor, windows 95, rdp, chrome remote desktop, 4k, dummy plug, resolution fix, server, hdmi dummy, virtual display driver">
-<link rel="canonical" href="https://culturedigitali.github.io/GhostScreen/">
+<title>GhostScreen 95 — 不存在的显示器</title>
+<meta name="description" content="GhostScreen 95：一个 Windows 95 风格的单一 EXE 工具，可为无头 Windows 电脑安装虚拟显示器，无需物理显示器即可解锁高达 4K 的真实分辨率。由 Luigi Strazzullo 为 Culture Digitali Srl 开发。">
+<meta name="keywords" content="ghostscreen, 虚拟显示器, 无头电脑, 虚拟监视器, windows 95, rdp, chrome remote desktop, 4k, dummy plug, 分辨率, 服务器, hdmi">
+<link rel="canonical" href="https://culturedigitali.github.io/GhostScreen/zh.html">
 <link rel="alternate" hreflang="it" href="https://culturedigitali.github.io/GhostScreen/it.html">
 <link rel="alternate" hreflang="es" href="https://culturedigitali.github.io/GhostScreen/es.html">
 <link rel="alternate" hreflang="fr" href="https://culturedigitali.github.io/GhostScreen/fr.html">
@@ -15,21 +15,15 @@
 <link rel="alternate" hreflang="zh" href="https://culturedigitali.github.io/GhostScreen/zh.html">
 <link rel="alternate" hreflang="ja" href="https://culturedigitali.github.io/GhostScreen/ja.html">
 <link rel="alternate" hreflang="x-default" href="https://culturedigitali.github.io/GhostScreen/">
-<meta property="og:title" content="GhostScreen 95 — The display that doesn't exist">
-<meta property="og:description" content="A phantom monitor for headless Windows machines. One EXE, real resolutions up to 4K, zero hardware. By Luigi Strazzullo for Culture Digitali Srl.">
+<meta property="og:title" content="GhostScreen 95 — 不存在的显示器">
+<meta property="og:description" content="为无头 Windows 电脑准备的幽灵显示器。一个 EXE，高达 4K 的真实分辨率，零硬件。由 Luigi Strazzullo 为 Culture Digitali Srl 开发。">
 <meta property="og:image" content="https://culturedigitali.github.io/GhostScreen/assets/banner.png">
-<meta property="og:url" content="https://culturedigitali.github.io/GhostScreen/">
+<meta property="og:url" content="https://culturedigitali.github.io/GhostScreen/zh.html">
 <meta property="og:type" content="website">
-<meta property="og:locale" content="en_US">
-<meta property="og:locale:alternate" content="it_IT">
-<meta property="og:locale:alternate" content="es_ES">
-<meta property="og:locale:alternate" content="fr_FR">
-<meta property="og:locale:alternate" content="de_DE">
-<meta property="og:locale:alternate" content="zh_CN">
-<meta property="og:locale:alternate" content="ja_JP">
+<meta property="og:locale" content="zh_CN">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="GhostScreen 95 — The display that doesn't exist">
-<meta name="twitter:description" content="A phantom monitor for headless Windows machines. One EXE, real resolutions up to 4K, zero hardware.">
+<meta name="twitter:title" content="GhostScreen 95 — 不存在的显示器">
+<meta name="twitter:description" content="为无头 Windows 电脑准备的幽灵显示器。一个 EXE，高达 4K 的真实分辨率，零硬件。">
 <meta name="twitter:image" content="https://culturedigitali.github.io/GhostScreen/assets/banner.png">
 <script type="application/ld+json">
 {
@@ -41,17 +35,14 @@
   "applicationCategory": "UtilityApplication",
   "operatingSystem": "Windows 10/11 x64",
   "softwareVersion": "1.0.0",
-  "inLanguage": "en",
-  "description": "Single-file Windows 95-styled tool that installs a virtual display on headless Windows PCs and unlocks real resolutions up to 4K without a physical monitor.",
+  "inLanguage": "zh",
+  "description": "一个 Windows 95 风格的单一 EXE 工具，可为无头 Windows 电脑安装虚拟显示器，无需物理显示器即可解锁高达 4K 的真实分辨率。",
   "downloadUrl": "https://github.com/CultureDigitali/GhostScreen/releases/download/v1.0.0/GhostScreen-1.0.0.exe",
-  "installUrl": "https://github.com/CultureDigitali/GhostScreen/releases/download/v1.0.0/GhostScreen-1.0.0.exe",
   "fileSize": "571392",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
   "license": "https://github.com/CultureDigitali/GhostScreen/blob/main/LICENSE",
   "author": { "@type": "Organization", "name": "Culture Digitali Srl", "founder": { "@type": "Person", "name": "Luigi Strazzullo" } },
-  "publisher": { "@type": "Organization", "name": "Culture Digitali Srl" },
-  "screenshot": "https://culturedigitali.github.io/GhostScreen/assets/banner.png",
-  "featureList": "virtual display, headless pc, 4k resolution, windows 95 ui, single file exe, no internet required"
+  "publisher": { "@type": "Organization", "name": "Culture Digitali Srl" }
 }
 </script>
 <style>
@@ -59,7 +50,7 @@
   * { box-sizing:border-box; margin:0; padding:0; }
   html, body { height:100%; }
   body {
-    font-family:"MS Sans Serif","Tahoma",Verdana,sans-serif;
+    font-family:"Microsoft YaHei","MS Sans Serif","Tahoma",Verdana,sans-serif;
     background:var(--teal);
     color:var(--dark);
     padding:18px 10px 56px 10px;
@@ -149,19 +140,19 @@
 
 <div class="window">
   <div class="titlebar">
-    <img src="../assets/logo.png" alt="GhostScreen logo" width="16" height="16">
-    <span class="t">GhostScreen 95 — Virtual Display Suite</span>
+    <img src="../assets/logo.png" alt="GhostScreen 标志" width="16" height="16">
+    <span class="t">GhostScreen 95 — 虚拟显示器套装</span>
     <span class="tb-btn">▁</span><span class="tb-btn">✕</span>
   </div>
   <div class="menubar">
-    <a href="#download">File ▾</a>
-    <a href="#features">View ▾</a>
+    <a href="#download">文件 ▾</a>
+    <a href="#features">查看 ▾</a>
     <a href="it.html">Italiano</a>
     <a href="es.html">Español</a>
     <a href="fr.html">Français</a>
     <a href="de.html">Deutsch</a>
-    <a href="index.html" class="active">English</a>
-    <a href="zh.html">中文</a>
+    <a href="index.html">English</a>
+    <a href="zh.html" class="active">中文</a>
     <a href="ja.html">日本語</a>
     <a href="#credits">?</a>
   </div>
@@ -170,100 +161,98 @@
 
     <div class="hero">
       <h1>GhostScreen 95</h1>
-      <div class="tag"><b>The display that doesn't exist.</b></div>
-      <img class="banner" src="../assets/banner.png" alt="GhostScreen 95 banner — a ghost monitor on a Win95 desktop">
+      <div class="tag"><b>不存在的显示器。</b></div>
+      <img class="banner" src="../assets/banner.png" alt="GhostScreen 95 横幅 — Win95 桌面上的幽灵显示器">
       <p style="margin-top:10px">
-        Your headless PC just got a monitor. A <b>phantom</b> one. In <b>4K</b>.<br>
-        One single-file EXE · No installers · No internet needed · Windows 10/11 x64
+        你的无头电脑刚刚获得一台显示器。一台<b>幽灵</b>显示器。支持<b>4K</b>。<br>
+        一个 EXE 文件 · 无需安装程序 · 无需联网 · Windows 10/11 x64
       </p>
       <div class="btn-row" id="download">
-        <a class="btn primary" href="https://github.com/CultureDigitali/GhostScreen/releases/download/v1.0.0/GhostScreen-1.0.0.exe">⬇ Download GhostScreen-1.0.0.exe</a>
-        <a class="btn" href="https://github.com/CultureDigitali/GhostScreen">View Source on GitHub</a>
+        <a class="btn primary" href="https://github.com/CultureDigitali/GhostScreen/releases/download/v1.0.0/GhostScreen-1.0.0.exe">⬇ 下载 GhostScreen-1.0.0.exe</a>
+        <a class="btn" href="https://github.com/CultureDigitali/GhostScreen">在 GitHub 查看源码</a>
       </div>
     </div>
 
     <section>
-      <h2>The problem</h2>
+      <h2>问题</h2>
       <div class="panel">
-        <p>Your machine is a <b>headless box</b>: a server in a rack, a laptop with a broken screen,
-        a workstation reached over RDP or Chrome Remote Desktop. No physical monitor — so Windows
-        gives you <b>no monitor at all</b>.</p>
+        <p>你的机器是一台<b>无头主机</b>：机架上的服务器、屏幕损坏的笔记本电脑、通过 RDP 或
+        Chrome 远程桌面访问的工作站。没有物理显示器——所以 Windows 给你<b>一个显示器都没有</b>。</p>
         <ul>
-          <li>Remote sessions cap at a blurry <b>800x600</b> (or worse)</li>
-          <li>Apps you <i>know</i> are fullscreen show a tiny centered window</li>
-          <li>Games, design tools and media players refuse to render properly</li>
-          <li>UI scaling makes everything look like a spreadsheet from 1993</li>
+          <li>远程会话被限制在模糊的 <b>800x600</b>（或更差）</li>
+          <li>你<i>知道</i>是全屏的应用只显示一个小窗口</li>
+          <li>游戏、设计工具和播放器拒绝正确渲染</li>
+          <li>界面缩放让一切都像 1993 年的电子表格</li>
         </ul>
-        <p>You can't buy a monitor for a machine you'll never look at. So what do you do?</p>
+        <p>你不会为一台永远不会看的机器买显示器。那该怎么办？</p>
       </div>
     </section>
 
     <section>
-      <h2>The fix</h2>
+      <h2>解决方案</h2>
       <div class="panel">
-        <p><b>GhostScreen 95</b> installs a <i>virtual display</i> — a monitor that exists only in
-        software — and dials in the resolution <b>you</b> choose:</p>
+        <p><b>GhostScreen 95</b> 安装一个<i>虚拟显示器</i>——一个只存在于软件中的显示器——并设置<b>你</b>选择的分辨率：</p>
         <table class="res-tbl">
-          <tr><td class="b">2560x1440</td><td class="b">recommended</td></tr>
-          <tr><td>1920x1080</td><td>Full HD</td></tr>
-          <tr><td>1366x768</td><td>laptop standard</td></tr>
-          <tr><td>1280x720</td><td>HD ready</td></tr>
+          <tr><td class="b">2560x1440</td><td class="b">推荐</td></tr>
+          <tr><td>1920x1080</td><td>全高清</td></tr>
+          <tr><td>1366x768</td><td>笔记本标准</td></tr>
+          <tr><td>1280x720</td><td>高清</td></tr>
         </table>
-        <p>…all at <b>60 Hz</b> (the driver supports up to 4K). The OS thinks a beautiful monitor is
-        plugged in. Remote clients happily render widescreen, full-HD sessions. Your headless rig
-        behaves like a normal desktop — because, as far as Windows is concerned, it <i>is</i> one.</p>
-        <p class="ghostline">"A ghost screen. It's there. It isn't. Nobody knows. Windows loves it."</p>
+        <p>…全部支持 <b>60 Hz</b>（驱动程序最高支持 4K）。操作系统以为插着一台漂亮的显示器。
+        远程客户端流畅渲染宽屏全高清会话。你的无头电脑表现得像一台普通台式机——因为在
+        Windows 眼中，<i>它就是</i>。</p>
+        <p class="ghostline">"一块幽灵屏幕。它在那。它不在。没人知道。Windows 爱它。"</p>
       </div>
     </section>
 
     <section id="features">
-      <h2>What you get</h2>
+      <h2>你将获得</h2>
       <div class="panel">
         <ul>
-          <li><b>One EXE, everything inside</b> — driver, catalog, settings, tools. No installer, no leftovers.</li>
-          <li><b>Windows 95 soul</b> — a faithful '95-era UI. Gradient title bar, chiseled buttons, MS Sans Serif.</li>
-          <li><b>Self-healing</b> — detects a missing or stale driver, reinstalls, restarts the display, retries. Works on a fresh format.</li>
-          <li><b>Zero internet</b> — everything runs offline, from the EXE.</li>
-          <li><b>Re-runnable</b> — you formatted? Run it again. It's idempotent.</li>
-          <li><b>7 languages</b> — italiano, español, français, deutsch, english, 中文, 日本語, auto-detected.</li>
-          <li><b>Game Boy music</b> — a chiptune plays while the magic happens. Mute it in File ▾.</li>
+          <li><b>一个 EXE，一切尽在其中</b> — 驱动、目录、设置、工具。无需安装程序，无残留。</li>
+          <li><b>Windows 95 灵魂</b> — 忠实还原 95 年代界面。渐变标题栏、立体按钮、MS Sans Serif。</li>
+          <li><b>自我修复</b> — 检测缺失或过时的驱动，重新安装，重启显示器，自动重试。格式化后也能用。</li>
+          <li><b>完全离线</b> — 一切离线运行，仅凭这个 EXE。</li>
+          <li><b>可重复执行</b> — 格式化了？再运行一次。幂等。</li>
+          <li><b>7 种语言</b> — italiano, español, français, deutsch, english, 中文, 日本語，自动检测。</li>
+          <li><b>Game Boy 音乐</b> — 奇迹发生时播放芯片音乐。可在 文件 ▾ 中静音。</li>
         </ul>
       </div>
     </section>
 
     <section>
-      <h2>Who it's for</h2>
+      <h2>适合谁</h2>
       <div class="panel">
         <ul>
-          <li><b>Headless servers</b> managed over RDP — real resolution, real productivity</li>
-          <li><b>Laptops with broken screens</b> — the machine isn't dead, it just needs a phantom panel</li>
-          <li><b>HTPCs</b> attached to a TV that's often off — keep the desktop sane</li>
-          <li><b>CI/CD and test labs</b> — stable virtual displays for UI automation</li>
-          <li><b>Remote work</b> via Chrome Remote Desktop / AnyDesk / TeamViewer — crisp widescreen</li>
-          <li><b>GPU farms and mining rigs</b> — the software dummy plug</li>
+          <li><b>无头服务器</b>通过 RDP 管理 — 真实分辨率，真实效率</li>
+          <li><b>屏幕损坏的笔记本</b> — 机器没死，只缺一块幽灵面板</li>
+          <li><b>HTPC</b>连接常关的电视 — 桌面始终正常</li>
+          <li><b>CI/CD 和测试实验室</b> — 稳定的虚拟显示器用于 UI 自动化</li>
+          <li><b>远程办公</b>通过 Chrome 远程桌面 / AnyDesk / TeamViewer — 清晰的宽屏</li>
+          <li><b>GPU 农场和矿机</b> — 软件版 dummy plug</li>
         </ul>
-        <p>Six full stories: <a href="./CASE-STUDIES.md">docs/CASE-STUDIES.md</a></p>
+        <p>六个完整案例：<a href="./CASE-STUDIES.md">docs/CASE-STUDIES.md</a></p>
       </div>
     </section>
 
     <section>
-      <h2>Quick start</h2>
+      <h2>快速开始</h2>
       <div class="panel">
-        <p><code>1.</code> Download the EXE · <code>2.</code> Right-click → <b>Run as administrator</b> ·
-        <code>3.</code> Pick your resolution · <code>4.</code> Hit <b>Install &amp; Apply</b> · Done. 🎩</p>
-        <p style="font-size:11px; color:#404040;">Requires Windows 10/11 x64 and the built-in .NET Framework 4.x (preinstalled). MIT licensed.</p>
+        <p><code>1.</code> 下载 EXE · <code>2.</code> 右键 → <b>以管理员身份运行</b> ·
+        <code>3.</code> 选择分辨率 · <code>4.</code> 点击<b>安装并应用</b> · 完成。🎩</p>
+        <p style="font-size:11px; color:#404040;">需要 Windows 10/11 x64 和内置的 .NET Framework 4.x（已预装）。MIT 许可证。</p>
       </div>
     </section>
 
     <section id="credits">
-      <h2>Credits</h2>
+      <h2>致谢</h2>
       <div class="panel">
-        <p><b>GhostScreen 95 is crafted by <a href="https://github.com/CultureDigitali">Luigi Strazzullo</a>
-        for <b>Culture Digitali Srl</b></b> — with the '95-era honesty we all deserve.</p>
-        <p>Virtual display driver: <a href="https://github.com/itsmikethetech/Virtual-Display-Driver">MikeTheTech / Virtual-Display-Driver</a> (MIT) ·
-        <code>devcon.exe</code>: Microsoft Windows Driver Kit · Everything else: original work.</p>
-        <p>License: <a href="../LICENSE">MIT</a> · Changelog: <a href="../CHANGELOG.md">CHANGELOG.md</a> ·
-        Product vision: <a href="./PRODUCT.md">PRODUCT.md</a> · Source: <a href="https://github.com/CultureDigitali/GhostScreen">GitHub</a></p>
+        <p><b>GhostScreen 95 由 <a href="https://github.com/CultureDigitali">Luigi Strazzullo</a>
+        为 <b>Culture Digitali Srl</b> 开发</b>——带着我们都值得拥有的 90 年代真诚。</p>
+        <p>虚拟显示器驱动：<a href="https://github.com/itsmikethetech/Virtual-Display-Driver">MikeTheTech / Virtual-Display-Driver</a>（MIT）·
+        <code>devcon.exe</code>：微软 Windows 驱动程序套件 · 其余：原创工作。</p>
+        <p>许可证：<a href="../LICENSE">MIT</a> · 更新日志：<a href="../CHANGELOG.md">CHANGELOG.md</a> ·
+        产品愿景：<a href="./PRODUCT.md">PRODUCT.md</a> · 源码：<a href="https://github.com/CultureDigitali/GhostScreen">GitHub</a></p>
       </div>
     </section>
 
@@ -273,7 +262,7 @@
 
 <div class="taskbar">
   <a class="start" href="#download">
-    <img src="../assets/logo.png" alt="Start" width="18" height="18"> Start
+    <img src="../assets/logo.png" alt="开始" width="18" height="18"> 开始
   </a>
   <span style="border:1px solid #808080; border-top-color:#fff; border-left-color:#fff; padding:2px 6px; font-weight:bold; background:var(--face);">GhostScreen 95</span>
   <span class="spacer"></span>
@@ -281,8 +270,8 @@
 </div>
 
 <div class="foot-note">
-  GhostScreen is an independent project by Luigi Strazzullo for Culture Digitali Srl.
-  Not affiliated with Microsoft. Windows 95 is a trademark of Microsoft Corporation — we just miss it.
+  GhostScreen 是 Luigi Strazzullo 为 Culture Digitali Srl 开发的独立项目。
+  与微软无关。Windows 95 是微软公司的商标——我们只是怀念它。
 </div>
 
 <script>

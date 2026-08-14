@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -7,19 +8,218 @@ using System.Threading;
 using System.Windows.Forms;
 using System.Drawing;
 using System.Drawing.Drawing2D;
-using System.Drawing.Text;
+using System.Globalization;
 using System.Security.Principal;
+using Microsoft.Win32;
 
 namespace GhostScreen {
     static class Program {
+        public static bool Quiet;
+
         [STAThread]
-        static void Main() {
+        static void Main(string[] args) {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
+            for (int i = 0; i < args.Length; i++) {
+                string a = args[i].ToLowerInvariant();
+                if (a.StartsWith("/lang:")) {
+                    string c = a.Substring(6);
+                    if (c == "it" || c == "es" || c == "fr" || c == "de" || c == "en" || c == "zh" || c == "ja")
+                        L.OverrideLang = c;
+                } else if (a == "/nosound") {
+                    Chiptune.Muted = true;
+                } else if (a == "/quiet") {
+                    Quiet = true;
+                }
+            }
             Application.Run(new MainForm());
         }
     }
 
+    // ============================================================
+    // L: translation engine (it, es, fr, de, en, zh, ja)
+    // ============================================================
+    static class L {
+        public static string OverrideLang = null;
+        static Dictionary<string, Dictionary<string, string>> T = new Dictionary<string, Dictionary<string, string>>();
+        static string[] langs = { "it", "es", "fr", "de", "en", "zh", "ja" };
+        static string[] nativeNames = { "Italiano", "Español", "Français", "Deutsch", "English", "中文", "日本語" };
+        static bool loaded;
+        public static string Code = "en";
+        public static Font UIFont;
+
+        public static void EnsureLoaded() {
+            if (loaded) return;
+            loaded = true;
+            UIFont = new Font("MS Sans Serif", 8F);
+            try {
+                using (Stream s = Assembly.GetExecutingAssembly().GetManifestResourceStream("Res.lang.txt")) {
+                    if (s != null) {
+                        using (StreamReader r = new StreamReader(s, System.Text.Encoding.UTF8)) {
+                            string line;
+                            while ((line = r.ReadLine()) != null) {
+                                if (line.Length == 0) continue;
+                                string[] p = line.Split('\t');
+                                if (p.Length < 8) continue;
+                                Dictionary<string, string> d = new Dictionary<string, string>();
+                                for (int i = 0; i < 7; i++) d[langs[i]] = p[i + 1].Replace("\\n", "\n");
+                                T[p[0]] = d;
+                            }
+                        }
+                    }
+                }
+            } catch { }
+        }
+
+        public static string Detect() {
+            try {
+                string c = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName.ToLowerInvariant();
+                if (c == "it" || c == "es" || c == "fr" || c == "de" || c == "zh" || c == "ja") return c;
+            } catch { }
+            return "en";
+        }
+
+        public static void Set(string code) {
+            EnsureLoaded();
+            Code = code;
+            string fam = "MS Sans Serif";
+            if (code == "zh") fam = "Microsoft YaHei";
+            else if (code == "ja") fam = "Yu Gothic UI";
+            try {
+                using (Font f = new Font(fam, 8F)) UIFont = new Font(fam, 8F);
+            } catch {
+                UIFont = new Font("MS Sans Serif", 8F);
+            }
+        }
+
+        public static string Get(string key, params object[] fmt) {
+            EnsureLoaded();
+            string v = null;
+            Dictionary<string, string> d;
+            if (T.TryGetValue(key, out d)) {
+                if (!d.TryGetValue(Code, out v)) d.TryGetValue("en", out v);
+            }
+            if (v == null) v = key;
+            if (fmt != null && fmt.Length > 0) {
+                try { v = string.Format(v, fmt); } catch { }
+            }
+            return v;
+        }
+
+        public static string[] NativeNames { get { return nativeNames; } }
+        public static string[] Codes { get { return langs; } }
+    }
+
+    // ============================================================
+    // Chiptune: Game Boy style music, synthesized at runtime
+    // (2 square waves + noise, like a real GB APU)
+    // ============================================================
+    static class Chiptune {
+        public static bool Muted;
+        static byte[] wav;
+        static bool playing;
+        const int SR = 44100;
+
+        [DllImport("winmm.dll")]
+        static extern bool PlaySound(byte[] pszSound, IntPtr hmod, uint fdwSound);
+        [DllImport("winmm.dll")]
+        static extern bool PlaySound(string pszSound, IntPtr hmod, uint fdwSound);
+
+        const uint SND_ASYNC = 0x0001;
+        const uint SND_NODEFAULT = 0x0002;
+        const uint SND_MEMORY = 0x0004;
+        const uint SND_LOOP = 0x0008;
+
+        public static void Start() {
+            if (Muted || playing) return;
+            try {
+                if (wav == null) wav = Build();
+PlaySound((string)null, IntPtr.Zero, 0);
+                playing = PlaySound(wav, IntPtr.Zero, SND_ASYNC | SND_MEMORY | SND_LOOP | SND_NODEFAULT);
+            } catch { }
+        }
+
+        public static void Stop() {
+            try { PlaySound((string)null, IntPtr.Zero, 0); } catch { }
+            playing = false;
+        }
+
+        static void AddSquare(double[] buf, int start, int len, double freq, double amp, double duty) {
+            double phase = 0;
+            for (int i = 0; i < len && start + i < buf.Length; i++) {
+                double t = (double)i / len;
+                double env = 1.0 - 0.2 * t;
+                double v = (phase % 1.0 < duty) ? 1.0 : -1.0;
+                buf[start + i] += v * amp * env;
+                phase += freq / SR;
+            }
+        }
+
+        static void AddNoise(double[] buf, int start, int len, double amp) {
+            uint s = 0xACE1u;
+            for (int i = 0; i < len && start + i < buf.Length; i++) {
+                s ^= s << 13; s ^= s >> 17; s ^= s << 5;
+                double v = ((s & 1u) == 1u) ? 1.0 : -1.0;
+                double t = (double)i / len;
+                buf[start + i] += v * amp * (1.0 - t);
+            }
+        }
+
+        static byte[] Build() {
+            // 140 BPM, 4 bars of 8 eighths
+            double eighth = 60.0 / 140.0 / 2.0;
+            int eighthS = (int)(eighth * SR);
+            int n = 32 * eighthS;
+            double[] mix = new double[n];
+
+            double[] lead = {
+                523.25,659.26,783.99,1046.50, 493.88,587.33,783.99,987.77,
+                523.25,659.26,783.99,1046.50, 440.00,523.25,659.26,880.00,
+                392.00,493.88,587.33,783.99, 329.63,392.00,493.88,659.26,
+                523.25,659.26,783.99,1046.50, 392.00,523.25,659.26,1046.50
+            };
+            double[] bass = { 130.81,196.00, 110.00,164.81, 98.00,146.83, 130.81,196.00 };
+
+            for (int i = 0; i < 32; i++) {
+                int t0 = i * eighthS;
+                AddSquare(mix, t0, (int)(eighthS * 0.88), lead[i], 0.32, 0.5);
+                if (i % 2 == 1) AddNoise(mix, t0, (int)(0.05 * SR), 0.09);
+            }
+            for (int i = 0; i < 8; i++) {
+                int t0 = i * 4 * eighthS;
+                AddSquare(mix, t0, 4 * eighthS - 2, bass[i], 0.42, 0.5);
+            }
+
+            MemoryStream ms = new MemoryStream();
+            BinaryWriter w = new BinaryWriter(ms, System.Text.Encoding.ASCII);
+            int dataLen = n * 2;
+            w.Write(System.Text.Encoding.ASCII.GetBytes("RIFF"));
+            w.Write(36 + dataLen);
+            w.Write(System.Text.Encoding.ASCII.GetBytes("WAVE"));
+            w.Write(System.Text.Encoding.ASCII.GetBytes("fmt "));
+            w.Write(16);
+            w.Write((short)1);       // PCM
+            w.Write((short)1);       // mono
+            w.Write(SR);
+            w.Write(SR * 2);
+            w.Write((short)2);
+            w.Write((short)16);
+            w.Write(System.Text.Encoding.ASCII.GetBytes("data"));
+            w.Write(dataLen);
+            for (int i = 0; i < n; i++) {
+                double v = mix[i];
+                if (v > 0.98) v = 0.98;
+                if (v < -0.98) v = -0.98;
+                w.Write((short)(v * 32767));
+            }
+            w.Flush();
+            return ms.ToArray();
+        }
+    }
+
+    // ============================================================
+    // Win95 styling
+    // ============================================================
     static class W95 {
         public static readonly Color Face = Color.FromArgb(192, 192, 192);
         public static readonly Color Light = Color.White;
@@ -95,7 +295,7 @@ namespace GhostScreen {
         Font fnt;
 
         W95MsgBox(string text, string caption, Icon appIcon, bool error) {
-            fnt = new Font("MS Sans Serif", 8.25F);
+            fnt = L.UIFont;
             FormBorderStyle = FormBorderStyle.None;
             BackColor = W95.Face;
             StartPosition = FormStartPosition.CenterParent;
@@ -124,7 +324,7 @@ namespace GhostScreen {
             lb.TextAlign = ContentAlignment.MiddleLeft;
 
             W95Button ok = new W95Button();
-            ok.Text = "OK";
+            ok.Text = L.Get("msg_ok");
             ok.Font = fnt;
             ok.Size = new Size(90, 26);
             ok.Location = new Point((w - 90) / 2, h - 40);
@@ -165,8 +365,8 @@ namespace GhostScreen {
         W95Button btnInstall, btnApply, btnRestart, btnAbout;
         TextBox txtLog;
         Label lblStatus, lblSeg;
-        Button btnFile, btnHelp;
-        ContextMenuStrip cmFile, cmHelp;
+        Button btnFile, btnLang, btnHelp;
+        ContextMenuStrip cmFile, cmLang, cmHelp;
         PictureBox pbHead;
         Rectangle minRect, closeRect;
         bool dragging;
@@ -174,11 +374,13 @@ namespace GhostScreen {
         Icon appIcon;
         Bitmap banner, logo;
 
-        // ---------- worker ----------
+        // ---------- state ----------
         Thread worker;
         volatile bool busy;
         string LogFile;
         readonly object logLock = new object();
+        int selW, selH;
+        bool musicOn;
 
         // ---------- P/Invoke ----------
         [DllImport("user32.dll", CharSet = CharSet.Unicode)]
@@ -221,10 +423,23 @@ namespace GhostScreen {
                     logo = new Bitmap(s);
             } catch { }
 
+            // ---- language ----
+            string code = L.Detect();
+            try {
+                using (RegistryKey k = Registry.CurrentUser.OpenSubKey(@"Software\GhostScreen")) {
+                    if (k != null) {
+                        string v = k.GetValue("Lang") as string;
+                        if (v != null && v.Length == 2) code = v;
+                    }
+                }
+            } catch { }
+            if (L.OverrideLang != null) code = L.OverrideLang;
+            L.Set(code);
+            Font = L.UIFont;
+
             Text = "GhostScreen 95";
             FormBorderStyle = FormBorderStyle.None;
             BackColor = W95.Face;
-            Font = new Font("MS Sans Serif", 8F);
             ClientSize = new Size(640, 576);
             StartPosition = FormStartPosition.CenterScreen;
             DoubleBuffered = true;
@@ -256,60 +471,37 @@ namespace GhostScreen {
             menuBar.Size = new Size(640, 22);
             menuBar.BackColor = W95.Face;
 
-            btnFile = new Button();
-            btnFile.Text = "&File";
-            btnFile.FlatStyle = FlatStyle.Flat;
-            btnFile.BackColor = W95.Face;
-            btnFile.ForeColor = W95.Dark;
-            btnFile.Font = Font;
-            btnFile.Location = new Point(4, 2);
-            btnFile.Size = new Size(36, 18);
-            btnFile.Click += delegate {
-                cmFile.Show(menuBar, new Point(btnFile.Left, btnFile.Bottom + 2));
-            };
+            btnFile = NewMenuBtn(4, 2, 36);
+            btnFile.Click += delegate { cmFile.Show(menuBar, new Point(btnFile.Left, btnFile.Bottom + 2)); };
+            btnLang = NewMenuBtn(42, 2, 52);
+            btnLang.Click += delegate { cmLang.Show(menuBar, new Point(btnLang.Left, btnLang.Bottom + 2)); };
+            btnHelp = NewMenuBtn(96, 2, 22);
+            btnHelp.Click += delegate { cmHelp.Show(menuBar, new Point(btnHelp.Left, btnHelp.Bottom + 2)); };
 
-            btnHelp = new Button();
-            btnHelp.Text = "&?";
-            btnHelp.FlatStyle = FlatStyle.Flat;
-            btnHelp.BackColor = W95.Face;
-            btnHelp.ForeColor = W95.Dark;
-            btnHelp.Font = Font;
-            btnHelp.Location = new Point(42, 2);
-            btnHelp.Size = new Size(22, 18);
-            btnHelp.Click += delegate {
-                cmHelp.Show(menuBar, new Point(btnHelp.Left, btnHelp.Bottom + 2));
-            };
-
-            cmFile = new ContextMenuStrip();
-            cmFile.RenderMode = ToolStripRenderMode.Professional;
-            cmFile.Renderer = new W95MenuRenderer();
-            cmFile.Font = Font;
-            cmFile.Items.Add("Esci", null, delegate { Close(); });
-
-            cmHelp = new ContextMenuStrip();
-            cmHelp.RenderMode = ToolStripRenderMode.Professional;
-            cmHelp.Renderer = new W95MenuRenderer();
-            cmHelp.Font = Font;
-            cmHelp.Items.Add("Informazioni su GhostScreen", null, delegate { ShowAbout(); });
+            cmFile = NewMenu();
+            cmLang = NewMenu();
+            cmHelp = NewMenu();
 
             menuBar.Controls.Add(btnFile);
+            menuBar.Controls.Add(btnLang);
             menuBar.Controls.Add(btnHelp);
 
             // ---- resolution group ----
             GroupBox gRes = new GroupBox();
-            gRes.Text = "Risoluzione di destinazione";
+            gResBox = gRes;
+            gRes.Text = L.Get("grp_res");
             gRes.Font = Font;
             gRes.ForeColor = W95.Dark;
             gRes.BackColor = W95.Face;
             gRes.Location = new Point(12, 192);
             gRes.Size = new Size(352, 166);
 
-            rbQ = NewRadio("2560x1440  (consigliata)", 16, 28); rbQ.Checked = true;
-            rbF = NewRadio("1920x1080", 16, 56);
-            rbH = NewRadio("1366x768", 16, 84);
-            rbV = NewRadio("1280x720", 16, 112);
+            rbQ = NewRadio(16, 28); rbQ.Checked = true;
+            rbF = NewRadio(16, 56);
+            rbH = NewRadio(16, 84);
+            rbV = NewRadio(16, 112);
             Label note = new Label();
-            note.Text = "In modalita' headless la risoluzione\nviene impostata istantaneamente.";
+            noteText = note;
             note.Font = Font;
             note.ForeColor = Color.FromArgb(80, 80, 80);
             note.BackColor = W95.Face;
@@ -318,19 +510,20 @@ namespace GhostScreen {
             gRes.Controls.Add(rbQ); gRes.Controls.Add(rbF); gRes.Controls.Add(rbH); gRes.Controls.Add(rbV); gRes.Controls.Add(note);
 
             // ---- actions ----
-            btnInstall = NewButton("Installa e Applica", 380, 210, 124, 28);
+            btnInstall = NewButton(380, 210, 124, 28);
             btnInstall.DefaultButton = true;
             btnInstall.Click += delegate { StartInstall(); };
-            btnApply = NewButton("Solo risoluzione", 380, 246, 124, 28);
+            btnApply = NewButton(380, 246, 124, 28);
             btnApply.Click += delegate { StartApply(); };
-            btnRestart = NewButton("Riavvia display", 380, 282, 124, 28);
+            btnRestart = NewButton(380, 282, 124, 28);
             btnRestart.Click += delegate { StartRestart(); };
-            btnAbout = NewButton("About...", 380, 318, 124, 28);
+            btnAbout = NewButton(380, 318, 124, 28);
             btnAbout.Click += delegate { ShowAbout(); };
 
             // ---- log ----
             GroupBox gLog = new GroupBox();
-            gLog.Text = "Log di avanzamento";
+            gLogBox = gLog;
+            gLog.Text = L.Get("grp_log");
             gLog.Font = Font;
             gLog.ForeColor = W95.Dark;
             gLog.BackColor = W95.Face;
@@ -355,7 +548,6 @@ namespace GhostScreen {
             statusBar.BackColor = W95.Face;
 
             lblStatus = new Label();
-            lblStatus.Text = "Pronto";
             lblStatus.Font = Font;
             lblStatus.ForeColor = W95.Dark;
             lblStatus.BackColor = W95.Face;
@@ -384,31 +576,123 @@ namespace GhostScreen {
             closeRect = new Rectangle(ClientSize.Width - 22, 3, 18, 15);
             AcceptButton = btnInstall;
 
-            Log("=== GhostScreen 95 " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " ===");
-            Log("Admin: " + IsAdmin());
-            if (!IsAdmin()) Log("!! NON eseguito come amministratore: i passi driver falliranno.");
-            Log("Risoluzione attuale: " + CurrentResolution());
+            ApplyLanguage();
+            Chiptune.Start();
+            musicOn = !Chiptune.Muted;
+
+            Log(L.Get("log_lang", L.Code));
+            Log(L.Get("log_admin", IsAdmin()));
+            if (!IsAdmin()) Log(L.Get("log_not_admin"));
+            Log(L.Get("log_cur_res", CurrentResolution()));
             if (IsVddInstalled()) {
-                Log("Driver Virtual Display: gia' installato. Applico la risoluzione selezionata...");
+                Log(L.Get("log_drv_inst"));
                 StartApply();
             } else {
-                Log("Driver Virtual Display NON installato: avvio installazione completa...");
+                Log(L.Get("log_drv_miss"));
                 StartInstall();
             }
         }
 
-        void ShowAbout() {
-            W95MsgBox.Show(
-                "GhostScreen 95 v1.0.0\nVirtual Display Suite per PC headless.\n\n" +
-                "Installa un display virtuale e sblocca\nrisoluzioni reali fino a 4K senza\nmonitor fisico.\n\n" +
-                "Realizzato da Luigi Strazzullo\nper Culture Digitali Srl\n\n" +
-                "Driver: Virtual-Display-Driver (MikeTheTech)\nMIT License - GhostScreen Project",
-                "Informazioni su GhostScreen", appIcon, false);
+        protected override void OnFormClosed(FormClosedEventArgs e) {
+            base.OnFormClosed(e);
+            Chiptune.Stop();
+            try {
+                using (RegistryKey k = Registry.CurrentUser.CreateSubKey(@"Software\GhostScreen")) {
+                    k.SetValue("Lang", L.Code);
+                }
+            } catch { }
         }
 
-        RadioButton NewRadio(string text, int x, int y) {
+        Button NewMenuBtn(int x, int y, int w) {
+            Button b = new Button();
+            b.FlatStyle = FlatStyle.Flat;
+            b.BackColor = W95.Face;
+            b.ForeColor = W95.Dark;
+            b.Font = Font;
+            b.Location = new Point(x, y);
+            b.Size = new Size(w, 18);
+            b.TextAlign = ContentAlignment.MiddleLeft;
+            return b;
+        }
+
+        ContextMenuStrip NewMenu() {
+            ContextMenuStrip m = new ContextMenuStrip();
+            m.RenderMode = ToolStripRenderMode.Professional;
+            m.Renderer = new W95MenuRenderer();
+            m.Font = L.UIFont;
+            return m;
+        }
+
+        void ApplyLanguage() {
+            Font = L.UIFont;
+            SetFontRecursive(this, L.UIFont);
+
+            btnFile.Text = L.Get("file");
+            btnLang.Text = L.Get("language");
+            btnHelp.Text = L.Get("help");
+
+            rbQ.Text = L.Get("res2560");
+            rbF.Text = "1920x1080";
+            rbH.Text = "1366x768";
+            rbV.Text = "1280x720";
+            noteText.Text = L.Get("res_note");
+            ((GroupBox)gResBox).Text = L.Get("grp_res");
+            ((GroupBox)gLogBox).Text = L.Get("grp_log");
+            btnInstall.Text = L.Get("btn_install");
+            btnApply.Text = L.Get("btn_apply");
+            btnRestart.Text = L.Get("btn_restart");
+            btnAbout.Text = L.Get("btn_about");
+            lblStatus.Text = L.Get("st_ready");
+            lblSeg.Text = "GhostScreen 95";
+
+            // ---- rebuild menus ----
+            cmFile.Items.Clear();
+            ToolStripMenuItem miMusic = new ToolStripMenuItem(L.Get("music"));
+            miMusic.CheckOnClick = true;
+            miMusic.Checked = musicOn;
+            miMusic.Click += delegate {
+                musicOn = miMusic.Checked;
+                if (musicOn) Chiptune.Start(); else Chiptune.Stop();
+            };
+            cmFile.Items.Add(miMusic);
+            cmFile.Items.Add(new ToolStripSeparator());
+            cmFile.Items.Add(L.Get("exit"), null, delegate { Close(); });
+
+            cmLang.Items.Clear();
+            for (int i = 0; i < L.Codes.Length; i++) {
+                string code = L.Codes[i];
+                ToolStripMenuItem it = new ToolStripMenuItem(L.NativeNames[i]);
+                it.Checked = (L.Code == code);
+                it.Click += delegate { SwitchLang(code); };
+                cmLang.Items.Add(it);
+            }
+
+            cmHelp.Items.Clear();
+            cmHelp.Items.Add(L.Get("about"), null, delegate { ShowAbout(); });
+
+            Invalidate();
+        }
+
+        void SetFontRecursive(Control parent, Font f) {
+            foreach (Control c in parent.Controls) {
+                try { c.Font = f; } catch { }
+                SetFontRecursive(c, f);
+            }
+        }
+
+        void SwitchLang(string code) {
+            if (L.Code == code) return;
+            L.Set(code);
+            ApplyLanguage();
+            Log(L.Get("log_lang", code));
+        }
+
+        void ShowAbout() {
+            W95MsgBox.Show(L.Get("about_text"), L.Get("about_title"), appIcon, false);
+        }
+
+        RadioButton NewRadio(int x, int y) {
             RadioButton r = new RadioButton();
-            r.Text = text;
             r.Font = Font;
             r.ForeColor = W95.Dark;
             r.BackColor = W95.Face;
@@ -417,14 +701,16 @@ namespace GhostScreen {
             return r;
         }
 
-        W95Button NewButton(string text, int x, int y, int w, int h) {
+        W95Button NewButton(int x, int y, int w, int h) {
             W95Button b = new W95Button();
-            b.Text = text;
             b.Font = Font;
             b.Size = new Size(w, h);
             b.Location = new Point(x, y);
             return b;
         }
+
+        Label noteText;
+        Control gResBox, gLogBox;
 
         // ---------- title bar ----------
         protected override void OnPaint(PaintEventArgs e) {
@@ -435,7 +721,7 @@ namespace GhostScreen {
             using (LinearGradientBrush b = new LinearGradientBrush(tr, W95.Title1, W95.Title2, 90F))
                 g.FillRectangle(b, tr);
             if (appIcon != null) g.DrawIcon(appIcon, new Rectangle(7, 4, 16, 16));
-            g.DrawString("GhostScreen 95 - Virtual Display Suite", new Font(Font, FontStyle.Bold), Brushes.White, 27, 5);
+            g.DrawString(L.Get("title"), new Font(Font, FontStyle.Bold), Brushes.White, 27, 5);
             ControlPaint.DrawButton(g, closeRect, ButtonState.Normal);
             ControlPaint.DrawButton(g, minRect, ButtonState.Normal);
             using (Pen p = new Pen(W95.Dark)) {
@@ -466,17 +752,21 @@ namespace GhostScreen {
             base.OnMouseUp(e);
             dragging = false;
         }
-        protected override void OnDoubleClick(EventArgs e) {
-            base.OnDoubleClick(e);
-            if (dragging) WindowState = FormWindowState.Minimized;
-        }
 
         // ---------- actions ----------
+        void ReadSelection() {
+            selW = 2560; selH = 1440;
+            if (rbF.Checked) { selW = 1920; selH = 1080; }
+            else if (rbH.Checked) { selW = 1366; selH = 768; }
+            else if (rbV.Checked) { selW = 1280; selH = 720; }
+        }
+
         void StartInstall() {
             if (busy) return;
             busy = true;
             SetBusyUI(true);
-            Step("Installazione del driver in corso...");
+            ReadSelection();
+            Step(L.Get("st_install"));
             worker = new Thread(DoInstall);
             worker.IsBackground = true;
             worker.Start();
@@ -486,7 +776,8 @@ namespace GhostScreen {
             if (busy) return;
             busy = true;
             SetBusyUI(true);
-            Step("Applicazione risoluzione in corso...");
+            ReadSelection();
+            Step(L.Get("st_apply"));
             worker = new Thread(DoApply);
             worker.IsBackground = true;
             worker.Start();
@@ -496,7 +787,8 @@ namespace GhostScreen {
             if (busy) return;
             busy = true;
             SetBusyUI(true);
-            Step("Riavvio del display in corso...");
+            ReadSelection();
+            Step(L.Get("st_restart"));
             worker = new Thread(DoRestart);
             worker.IsBackground = true;
             worker.Start();
@@ -512,7 +804,7 @@ namespace GhostScreen {
             string pnputil = Path.Combine(win, "System32", "pnputil.exe");
             string work = Path.Combine(Path.GetTempPath(), "GhostScreen-run");
             try {
-                Log("Estraggo i file del driver in " + work);
+                Log("Extract driver files to " + work);
                 Directory.CreateDirectory(work);
                 Extract("Res.mttvdd.inf", work, "mttvdd.inf");
                 Extract("Res.MttVDD.cat", work, "MttVDD.cat");
@@ -522,7 +814,7 @@ namespace GhostScreen {
                 Extract("Res.copy_settings.cmd", work, "copy_settings.cmd");
                 string inf = Path.Combine(work, "mttvdd.inf");
 
-                Step("Installazione del driver nel DriverStore...");
+                Step(L.Get("st_driverstore"));
                 Run(pnputil, "/add-driver \"" + inf + "\" /install");
 
                 string storeDir = FindDriverStoreDir(win);
@@ -535,9 +827,9 @@ namespace GhostScreen {
                     Thread.Sleep(6000);
                     Run("schtasks.exe", "/delete /tn " + task + " /f");
                     if (File.Exists(Path.Combine(storeDir, "vdd_settings.xml"))) Log("vdd_settings.xml -> DriverStore: OK");
-                    else Log("!! vdd_settings.xml -> DriverStore: NON presente");
+                    else Log("!! vdd_settings.xml -> DriverStore: NOT present");
                 } else {
-                    Log("!! cartella DriverStore non trovata");
+                    Log("!! DriverStore folder not found");
                 }
 
                 string umdf = Path.Combine(win, "System32", "drivers", "UMDF");
@@ -548,38 +840,38 @@ namespace GhostScreen {
                     Log("!! vdd_settings.xml -> UMDF: " + ex.Message);
                 }
 
-                Step("Creazione del dispositivo virtuale...");
+                Step(L.Get("st_create_dev"));
                 if (DeviceMissing()) {
                     Run(Path.Combine(work, "devcon.exe"), "install \"" + inf + "\" \"Root\\MttVDD\"");
                 } else {
-                    Log("Device Virtual Display: gia' presente");
+                    Log("Virtual Display device already present");
                 }
 
                 Thread.Sleep(4000);
-                Step("Riavvio dei dispositivi display...");
+                Step(L.Get("st_restart_dev"));
                 Run(pnputil, "/restart-device \"ROOT\\MttVDD\"");
                 Run(pnputil, "/restart-device \"ROOT\\DISPLAY\\0000\"");
                 Thread.Sleep(5000);
 
-                Step("Attesa del display virtuale...");
-                if (!WaitForDisplayReady(25)) Log("!! display non pronto dopo 25s, procedo comunque");
+                Step(L.Get("st_wait_display"));
+                if (!WaitForDisplayReady(25)) Log("!! display not ready after 25s, continuing anyway");
                 ApplySelectedResolution();
-                Finish("Installazione completata.");
+                Finish(L.Get("fin_install"));
             } catch (Exception ex) {
                 Log("FATAL: " + ex);
-                Finish("ERRORE: " + ex.Message);
+                Finish(L.Get("fin_error") + ex.Message);
             }
         }
 
         void DoApply() {
             try {
-                Step("Attesa del display virtuale...");
-                if (!WaitForDisplayReady(25)) Log("!! display non pronto dopo 25s, procedo comunque");
+                Step(L.Get("st_wait_display"));
+                if (!WaitForDisplayReady(25)) Log("!! display not ready after 25s, continuing anyway");
                 ApplySelectedResolution();
-                Finish("Risoluzione applicata.");
+                Finish(L.Get("fin_apply"));
             } catch (Exception ex) {
                 Log("FATAL: " + ex);
-                Finish("ERRORE: " + ex.Message);
+                Finish(L.Get("fin_error") + ex.Message);
             }
         }
 
@@ -587,62 +879,69 @@ namespace GhostScreen {
             string win = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
             string pnputil = Path.Combine(win, "System32", "pnputil.exe");
             try {
-                Step("Riavvio dei dispositivi display...");
+                Step(L.Get("st_restart_dev"));
                 Run(pnputil, "/restart-device \"ROOT\\MttVDD\"");
                 Run(pnputil, "/restart-device \"ROOT\\DISPLAY\\0000\"");
                 Thread.Sleep(6000);
-                Step("Attesa del display virtuale...");
-                if (!WaitForDisplayReady(20)) Log("!! display non pronto dopo 20s");
+                Step(L.Get("st_wait_display"));
+                if (!WaitForDisplayReady(20)) Log("!! display not ready after 20s");
                 ApplySelectedResolution();
-                Finish("Display riavviato.");
+                Finish(L.Get("fin_restart"));
             } catch (Exception ex) {
                 Log("FATAL: " + ex);
-                Finish("ERRORE: " + ex.Message);
+                Finish(L.Get("fin_error") + ex.Message);
             }
         }
 
         void ApplySelectedResolution() {
-            int x = 2560, y = 1440;
-            if (rbF.Checked) { x = 1920; y = 1080; }
-            else if (rbH.Checked) { x = 1366; y = 768; }
-            else if (rbV.Checked) { x = 1280; y = 720; }
-            Step("Applicazione della risoluzione " + x + "x" + y + "...");
-            string res = ApplyResolution(x, y, 60);
-            Log("Esito: " + res);
+            Step(L.Get("st_applying", selW, selH));
+            string res = ApplyResolution(selW, selH, 60);
+            Log("Result: " + res);
             Thread.Sleep(3000);
-            Log("Risoluzione finale: " + CurrentResolution());
+            Log(L.Get("log_cur_res", CurrentResolution()));
         }
 
         void Finish(string msg) {
             busy = false;
-            bool ok = !msg.StartsWith("ERRORE");
+            bool ok = !msg.StartsWith("ERRORE") && !msg.StartsWith("ERROR") && !msg.StartsWith("ERREUR") && !msg.StartsWith("FEHLER") && !msg.StartsWith("错误") && !msg.StartsWith("エラー");
             if (ok) {
                 string cur = CurrentResolution();
-                Log(msg + " Risoluzione attuale: " + cur);
-                SetStatus(msg + "  Risoluzione: " + cur, W95.Green);
-                string fmsg = msg + "\r\n\r\nRisoluzione attuale: " + cur + "\r\n\r\nLog completo: " + LogFile;
-                Invoke(new Action(delegate { W95MsgBox.Show(fmsg, "GhostScreen 95", appIcon, false); }));
+                Log(msg + " " + L.Get("res_now", cur));
+                SetStatus(msg + "  " + L.Get("res_now", cur), W95.Green);
+                if (!Program.Quiet) {
+                    string fmsg = msg + "\r\n\r\n" + L.Get("res_now", cur) + "\r\n\r\n" + L.Get("log_path", LogFile);
+                    try {
+                        Invoke(new Action(delegate { W95MsgBox.Show(fmsg, "GhostScreen 95", appIcon, false); }));
+                    } catch { }
+                }
             } else {
                 SetStatus(msg, Color.Firebrick);
-                string fmsg = msg + "\r\n\r\nLog completo: " + LogFile;
-                Invoke(new Action(delegate { W95MsgBox.Show(fmsg, "GhostScreen 95", appIcon, true); }));
+                if (!Program.Quiet) {
+                    string fmsg = msg + "\r\n\r\n" + L.Get("log_path", LogFile);
+                    try {
+                        Invoke(new Action(delegate { W95MsgBox.Show(fmsg, "GhostScreen 95", appIcon, true); }));
+                    } catch { }
+                }
             }
             SetBusyUI(false);
         }
 
         void SetBusyUI(bool b) {
             try {
+                if (IsDisposed || btnInstall == null || btnInstall.IsDisposed) return;
                 if (InvokeRequired) { Invoke(new Action<bool>(SetBusyUI), b); return; }
                 btnInstall.Enabled = !b;
                 btnApply.Enabled = !b;
                 btnRestart.Enabled = !b;
                 btnFile.Enabled = !b;
+                btnLang.Enabled = !b;
                 btnHelp.Enabled = !b;
             } catch { }
         }
 
         void SetStatus(string text, Color c) {
             try {
+                if (IsDisposed || lblStatus == null || lblStatus.IsDisposed) return;
                 if (InvokeRequired) { Invoke(new Action<string, Color>(SetStatus), text, c); return; }
                 lblStatus.Text = text;
                 lblStatus.ForeColor = c;
@@ -651,19 +950,26 @@ namespace GhostScreen {
 
         void Log(string m) {
             string line = DateTime.Now.ToString("HH:mm:ss") + "  " + m;
-            if (InvokeRequired) { Invoke(new Action<string>(Log), m); return; }
             lock (logLock) {
                 try { File.AppendAllText(LogFile, line + "\r\n"); } catch { }
             }
-            txtLog.AppendText(line + "\r\n");
-            txtLog.SelectionStart = txtLog.TextLength;
-            txtLog.ScrollToCaret();
+            AppendUi(line);
+        }
+
+        void AppendUi(string line) {
+            try {
+                if (IsDisposed || txtLog == null || txtLog.IsDisposed) return;
+                if (InvokeRequired) { Invoke(new Action<string>(AppendUi), line); return; }
+                txtLog.AppendText(line + "\r\n");
+                txtLog.SelectionStart = txtLog.TextLength;
+                txtLog.ScrollToCaret();
+            } catch { }
         }
 
         void Extract(string resName, string dir, string fileName) {
             string dest = Path.Combine(dir, fileName);
             using (Stream s = Assembly.GetExecutingAssembly().GetManifestResourceStream(resName)) {
-                if (s == null) throw new Exception("Risorsa incorporata mancante: " + resName);
+                if (s == null) throw new Exception("Missing embedded resource: " + resName);
                 using (FileStream fs = new FileStream(dest, FileMode.Create, FileAccess.Write)) s.CopyTo(fs);
             }
         }
@@ -685,7 +991,7 @@ namespace GhostScreen {
                     if (p.ExitCode != 0) Log("    exit=" + p.ExitCode);
                 }
             } catch (Exception ex) {
-                Log("!! comando fallito (" + exe + " " + args + "): " + ex.Message);
+                Log("!! command failed (" + exe + " " + args + "): " + ex.Message);
             }
         }
 
@@ -741,13 +1047,13 @@ namespace GhostScreen {
                     any = true;
                     if (dm.dmPelsWidth == w && dm.dmPelsHeight == h && (freq == 0 || dm.dmDisplayFrequency == freq)) {
                         int r = ChangeDisplaySettings(ref dm, 0);
-                        if (r == DISP_CHANGE_SUCCESSFUL) return "OK (modalita' #" + i + ", " + w + "x" + h + ")";
-                        return "modo trovato ma rifiutato (codice " + r + ")";
+                        if (r == DISP_CHANGE_SUCCESSFUL) return "OK (mode #" + i + ", " + w + "x" + h + ")";
+                        return "mode found but rejected (code " + r + ")";
                     }
                     i++;
                 }
                 if (!any && attempt == 1) {
-                    Log("  enumerazione vuota: reset della configurazione display...");
+                    Log("  empty enumeration: resetting display config...");
                     DEVMODE nul = new DEVMODE();
                     nul.dmSize = (short)Marshal.SizeOf(typeof(DEVMODE));
                     ChangeDisplaySettings(ref nul, 0);
@@ -765,7 +1071,7 @@ namespace GhostScreen {
             d.dmFields = DM_BITSPERPEL | DM_PELSWIDTH | DM_PELSHEIGHT | DM_DISPLAYFREQUENCY;
             int r2 = ChangeDisplaySettings(ref d, 0);
             if (r2 == DISP_CHANGE_SUCCESSFUL) return "OK (manual, " + w + "x" + h + ")";
-            return "FAIL: codice " + r2 + " (0=ok, -2=non supportata, -5=non aggiornata). Riavvia il PC e riprova.";
+            return "FAIL: code " + r2 + " (0=ok, -2=not supported, -5=not updated). Reboot and retry.";
         }
 
         string CurrentResolution() {
@@ -773,7 +1079,7 @@ namespace GhostScreen {
             dm.dmSize = (short)Marshal.SizeOf(typeof(DEVMODE));
             if (EnumDisplaySettings(null, -1, ref dm) != 0 && dm.dmPelsWidth > 0)
                 return dm.dmPelsWidth + "x" + dm.dmPelsHeight + " @" + dm.dmDisplayFrequency + "Hz";
-            return "n/d";
+            return "n/a";
         }
     }
 }

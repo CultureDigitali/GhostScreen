@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GhostScreen 95 — 存在しないディスプレイ</title>
+<meta name="description" content="GhostScreen 95：ヘッドレスWindows PCに仮想ディスプレイをインストールし、物理モニターなしで最大4Kの実解像度を実現する、Windows 95風の単一EXEツール。Luigi Strazzullo が Culture Digitali Srl のために開発。">
+<meta name="keywords" content="ghostscreen, 仮想ディスプレイ, ヘッドレスpc, 仮想モニター, windows 95, rdp, chrome remote desktop, 4k, dummy plug, 解像度, サーバー, hdmi">
+<link rel="canonical" href="https://culturedigitali.github.io/GhostScreen/ja.html">
+<link rel="alternate" hreflang="it" href="https://culturedigitali.github.io/GhostScreen/it.html">
+<link rel="alternate" hreflang="es" href="https://culturedigitali.github.io/GhostScreen/es.html">
+<link rel="alternate" hreflang="fr" href="https://culturedigitali.github.io/GhostScreen/fr.html">
+<link rel="alternate" hreflang="de" href="https://culturedigitali.github.io/GhostScreen/de.html">
+<link rel="alternate" hreflang="en" href="https://culturedigitali.github.io/GhostScreen/">
+<link rel="alternate" hreflang="zh" href="https://culturedigitali.github.io/GhostScreen/zh.html">
+<link rel="alternate" hreflang="ja" href="https://culturedigitali.github.io/GhostScreen/ja.html">
+<link rel="alternate" hreflang="x-default" href="https://culturedigitali.github.io/GhostScreen/">
+<meta property="og:title" content="GhostScreen 95 — 存在しないディスプレイ">
+<meta property="og:description" content="ヘッドレスWindowsマシンのための幽霊モニター。EXE1つ、最大4Kの実解像度、ハードウェア不要。Luigi Strazzullo が Culture Digitali Srl のために開発。">
+<meta property="og:image" content="https://culturedigitali.github.io/GhostScreen/assets/banner.png">
+<meta property="og:url" content="https://culturedigitali.github.io/GhostScreen/ja.html">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="ja_JP">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="GhostScreen 95 — 存在しないディスプレイ">
+<meta name="twitter:description" content="ヘッドレスWindowsマシンのための幽霊モニター。EXE1つ、最大4Kの実解像度、ハードウェア不要。">
+<meta name="twitter:image" content="https://culturedigitali.github.io/GhostScreen/assets/banner.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "GhostScreen 95",
+  "alternateName": "GhostScreen",
+  "version": "1.0.0",
+  "applicationCategory": "UtilityApplication",
+  "operatingSystem": "Windows 10/11 x64",
+  "softwareVersion": "1.0.0",
+  "inLanguage": "ja",
+  "description": "ヘッドレスWindows PCに仮想ディスプレイをインストールし、物理モニターなしで最大4Kの実解像度を実現する、Windows 95風の単一EXEツール。",
+  "downloadUrl": "https://github.com/CultureDigitali/GhostScreen/releases/download/v1.0.0/GhostScreen-1.0.0.exe",
+  "fileSize": "571392",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "license": "https://github.com/CultureDigitali/GhostScreen/blob/main/LICENSE",
+  "author": { "@type": "Organization", "name": "Culture Digitali Srl", "founder": { "@type": "Person", "name": "Luigi Strazzullo" } },
+  "publisher": { "@type": "Organization", "name": "Culture Digitali Srl" }
+}
+</script>
+<style>
+  :root { --face:#c0c0c0; --dark:#000; --navy:#000080; --blue2:#1084d0; --teal:#008080; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html, body { height:100%; }
+  body {
+    font-family:"Yu Gothic UI","MS Gothic","MS Sans Serif","Tahoma",sans-serif;
+    background:var(--teal);
+    color:var(--dark);
+    padding:18px 10px 56px 10px;
+  }
+  .window {
+    max-width:900px; margin:0 auto;
+    background:var(--face);
+    border:2px solid #dfdfdf;
+    border-top-color:#fff; border-left-color:#fff;
+    border-bottom-color:#404040; border-right-color:#404040;
+    box-shadow:4px 4px 0 rgba(0,0,0,.35);
+  }
+  .titlebar {
+    background:linear-gradient(90deg,#000080,#1084d0);
+    color:#fff; font-weight:bold; font-size:13px;
+    padding:3px 4px; display:flex; align-items:center; gap:6px;
+  }
+  .titlebar img { width:16px; height:16px; image-rendering:pixelated; }
+  .titlebar .t { flex:1; white-space:nowrap; overflow:hidden; }
+  .tb-btn {
+    width:18px; height:15px; font-size:10px; line-height:1;
+    background:var(--face); color:var(--dark); font-weight:normal;
+    border:1px solid #fff; border-right-color:#404040; border-bottom-color:#404040;
+    text-align:center; cursor:default; user-select:none; display:inline-block; padding-top:2px;
+  }
+  .menubar { display:flex; gap:2px; padding:2px 4px; border-bottom:1px solid #fff; font-size:12px; flex-wrap:wrap; }
+  .menubar a { color:var(--dark); text-decoration:none; padding:1px 6px; }
+  .menubar a:hover { background:var(--navy); color:#fff; }
+  .menubar a.active { background:var(--navy); color:#fff; }
+  .content { padding:16px; font-size:13px; line-height:1.5; }
+  .hero { text-align:center; padding:10px 0 6px 0; }
+  .hero h1 { font-size:30px; letter-spacing:1px; text-shadow:1px 1px 0 #fff; }
+  .hero .tag { font-size:16px; margin:4px 0 10px 0; }
+  .hero img.banner { width:100%; max-width:640px; border:1px solid #808080; image-rendering:pixelated; }
+  .btn-row { margin-top:14px; display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
+  .btn {
+    font-family:inherit; font-size:13px; padding:6px 16px;
+    background:var(--face); color:var(--dark); cursor:pointer;
+    border:2px solid #fff; border-right-color:#404040; border-bottom-color:#404040;
+    box-shadow:1px 1px 0 #808080;
+    text-decoration:none; display:inline-block;
+  }
+  .btn:active, .btn:hover { border:2px solid #404040; border-right-color:#fff; border-bottom-color:#fff; }
+  .btn.primary { font-weight:bold; }
+  section { margin-top:18px; }
+  h2 {
+    background:var(--navy); color:#fff; font-size:13px; font-weight:bold;
+    padding:2px 8px; margin-bottom:8px;
+  }
+  p { margin-bottom:6px; }
+  .panel {
+    border:2px solid #808080; border-top-color:#fff; border-left-color:#fff;
+    background:var(--face); padding:10px 12px; margin-bottom:10px;
+  }
+  ul { margin:4px 0 8px 22px; }
+  .res-tbl { border-collapse:collapse; margin:6px 0; }
+  .res-tbl td { border:1px solid #808080; padding:3px 10px; background:#fff; font-size:12px; }
+  .res-tbl td.b { background:#ffffcc; }
+  code { background:#fff; border:1px solid #808080; padding:0 4px; font-size:12px; }
+  a { color:#0000ee; }
+  a:hover { color:#ff0000; }
+  .ghostline { text-align:center; font-style:italic; color:#404040; margin-top:14px; }
+  .taskbar {
+    position:fixed; left:0; right:0; bottom:0; height:36px;
+    background:var(--face);
+    border-top:2px solid #fff;
+    display:flex; align-items:center; padding:0 4px; gap:6px;
+    font-size:12px; z-index:10;
+  }
+  .taskbar .start {
+    display:flex; align-items:center; gap:5px; height:26px; padding:0 8px;
+    font-weight:bold; text-decoration:none; color:var(--dark);
+    border:2px solid #fff; border-right-color:#404040; border-bottom-color:#404040;
+    background:var(--face);
+  }
+  .taskbar .start img { width:18px; height:18px; }
+  .taskbar .spacer { flex:1; }
+  .taskbar .tray {
+    border:2px solid #808080; border-top-color:#404040; border-left-color:#404040;
+    padding:2px 8px; background:var(--face); color:var(--dark);
+  }
+  .foot-note { text-align:center; font-size:11px; color:#e0ffff; margin-top:10px; }
+  .foot-note a { color:#fff; }
+</style>
+</head>
+<body>
+
+<div class="window">
+  <div class="titlebar">
+    <img src="../assets/logo.png" alt="GhostScreen ロゴ" width="16" height="16">
+    <span class="t">GhostScreen 95 — 仮想ディスプレイスイート</span>
+    <span class="tb-btn">▁</span><span class="tb-btn">✕</span>
+  </div>
+  <div class="menubar">
+    <a href="#download">ファイル ▾</a>
+    <a href="#features">表示 ▾</a>
+    <a href="it.html">Italiano</a>
+    <a href="es.html">Español</a>
+    <a href="fr.html">Français</a>
+    <a href="de.html">Deutsch</a>
+    <a href="index.html">English</a>
+    <a href="zh.html">中文</a>
+    <a href="ja.html" class="active">日本語</a>
+    <a href="#credits">?</a>
+  </div>
+
+  <div class="content">
+
+    <div class="hero">
+      <h1>GhostScreen 95</h1>
+      <div class="tag"><b>存在しないディスプレイ。</b></div>
+      <img class="banner" src="../assets/banner.png" alt="GhostScreen 95 バナー — Win95 デスクトップ上の幽霊モニター">
+      <p style="margin-top:10px">
+        ヘッドレスPCに、モニターがやってきました。<b>幽霊</b>のやつが。<b>4K</b>で。<br>
+        単一のEXE · インストーラー不要 · インターネット不要 · Windows 10/11 x64
+      </p>
+      <div class="btn-row" id="download">
+        <a class="btn primary" href="https://github.com/CultureDigitali/GhostScreen/releases/download/v1.0.0/GhostScreen-1.0.0.exe">⬇ GhostScreen-1.0.0.exe をダウンロード</a>
+        <a class="btn" href="https://github.com/CultureDigitali/GhostScreen">GitHub でソースを表示</a>
+      </div>
+    </div>
+
+    <section>
+      <h2>問題</h2>
+      <div class="panel">
+        <p>あなたのマシンは<b>ヘッドレスボックス</b>：ラックのサーバー、画面が壊れたノートPC、
+        RDP や Chrome リモートデスクトップで接続するワークステーション。物理モニターが
+        ない——だから Windows は<b>モニターなし</b>をくれます。</p>
+        <ul>
+          <li>リモートセッションはぼやけた <b>800x600</b>（またはそれ以下）で頭打ち</li>
+          <li><i>確実に</i>フルスクリーンのはずのアプリが小さな中央寄せウィンドウに</li>
+          <li>ゲーム、デザインツール、メディアプレイヤーが正しく描画しない</li>
+          <li>UI スケーリングで全部が1993年の表計算ソフトみたいに見える</li>
+        </ul>
+        <p>絶対に眺めないマシンのためにモニターは買えません。では、どうする？</p>
+      </div>
+    </section>
+
+    <section>
+      <h2>解決策</h2>
+      <div class="panel">
+        <p><b>GhostScreen 95</b> は<i>仮想ディスプレイ</i>——ソフトウェアの中にだけ存在する
+        モニター——をインストールし、<b>あなたが選んだ</b>解像度に設定します：</p>
+        <table class="res-tbl">
+          <tr><td class="b">2560x1440</td><td class="b">推奨</td></tr>
+          <tr><td>1920x1080</td><td>フルHD</td></tr>
+          <tr><td>1366x768</td><td>ノートPC標準</td></tr>
+          <tr><td>1280x720</td><td>HD ready</td></tr>
+        </table>
+        <p>…すべて <b>60 Hz</b>（ドライバーは最大4K対応）。OS は美しいモニターが接続されていると
+        思い込みます。リモートクライアントはワイドスクリーンのフルHDセッションを快適に描画。
+        ヘッドレスPC は普通のデスクトップのように振る舞います——Windows にとって<i>そうだから</i>です。</p>
+        <p class="ghostline">"幽霊画面。ある。ない。誰も知らない。Windows はそれを愛している。"</p>
+      </div>
+    </section>
+
+    <section id="features">
+      <h2>手に入るもの</h2>
+      <div class="panel">
+        <ul>
+          <li><b>EXE1つに全部入り</b> — ドライバー、カタログ、設定、ツール。インストーラー不要、残骸なし。</li>
+          <li><b>Windows 95 の魂</b> — '95年代に忠実なUI。グラデーションのタイトルバー、彫りの深いボタン、MS Sans Serif。</li>
+          <li><b>自己修復</b> — ドライバーの欠落や陳腐化を検出し、再インストール、ディスプレイ再起動、再試行。フォーマット後も動作。</li>
+          <li><b>完全オフライン</b> — すべてEXEだけでオフライン動作。</li>
+          <li><b>再実行可能</b> — フォーマットした？もう一度実行。冪等です。</li>
+          <li><b>7言語</b> — italiano, español, français, deutsch, english, 中文, 日本語、自動検出。</li>
+          <li><b>ゲームボーイ音楽</b> — 魔法が起きている間、チップチューンが流れます。ファイル ▾ で消音可。</li>
+        </ul>
+      </div>
+    </section>
+
+    <section>
+      <h2>こんな人向け</h2>
+      <div class="panel">
+        <ul>
+          <li><b>ヘッドレスサーバー</b>を RDP で管理 — 実解像度、実生産性</li>
+          <li><b>画面が壊れたノートPC</b> — マシンは死んでない、幽霊パネルが必要なだけ</li>
+          <li><b>HTPC</b>が消えているテレビに接続 — デスクトップは常に正常</li>
+          <li><b>CI/CD・テストラボ</b> — UI自動化のための安定した仮想ディスプレイ</li>
+          <li><b>リモートワーク</b> — Chrome リモートデスクトップ / AnyDesk / TeamViewer でくっきりワイド画面</li>
+          <li><b>GPUファームとマイニングリグ</b> — ソフトウェア製ダミープラグ</li>
+        </ul>
+        <p>6つの完全な事例：<a href="./CASE-STUDIES.md">docs/CASE-STUDIES.md</a></p>
+      </div>
+    </section>
+
+    <section>
+      <h2>クイックスタート</h2>
+      <div class="panel">
+        <p><code>1.</code> EXE をダウンロード · <code>2.</code> 右クリック → <b>管理者として実行</b> ·
+        <code>3.</code> 解像度を選択 · <code>4.</code> <b>インストールして適用</b> · 完了。🎩</p>
+        <p style="font-size:11px; color:#404040;">Windows 10/11 x64 と内蔵 .NET Framework 4.x（プレインストール）が必要。MIT ライセンス。</p>
+      </div>
+    </section>
+
+    <section id="credits">
+      <h2>クレジット</h2>
+      <div class="panel">
+        <p><b>GhostScreen 95 は <a href="https://github.com/CultureDigitali">Luigi Strazzullo</a>
+        が <b>Culture Digitali Srl</b> のために開発</b>——私たち全員にふさわしい90年代の正直さとともに。</p>
+        <p>仮想ディスプレイドライバー：<a href="https://github.com/itsmikethetech/Virtual-Display-Driver">MikeTheTech / Virtual-Display-Driver</a>（MIT）·
+        <code>devcon.exe</code>：Microsoft Windows Driver Kit · それ以外：オリジナル作品。</p>
+        <p>ライセンス：<a href="../LICENSE">MIT</a> · 変更履歴：<a href="../CHANGELOG.md">CHANGELOG.md</a> ·
+        製品ビジョン：<a href="./PRODUCT.md">PRODUCT.md</a> · コード：<a href="https://github.com/CultureDigitali/GhostScreen">GitHub</a></p>
+      </div>
+    </section>
+
+    <p class="ghostline">"Il monitor non c'è, ma la risoluzione sì."</p>
+  </div>
+</div>
+
+<div class="taskbar">
+  <a class="start" href="#download">
+    <img src="../assets/logo.png" alt="スタート" width="18" height="18"> スタート
+  </a>
+  <span style="border:1px solid #808080; border-top-color:#fff; border-left-color:#fff; padding:2px 6px; font-weight:bold; background:var(--face);">GhostScreen 95</span>
+  <span class="spacer"></span>
+  <span class="tray" id="clock">--:-- --</span>
+</div>
+
+<div class="foot-note">
+  GhostScreen は Luigi Strazzullo が Culture Digitali Srl のために開発した独立プロジェクトです。
+  Microsoft とは無関係です。Windows 95 は Microsoft Corporation の商標です——ただ懐かしいだけ。
+</div>
+
+<script>
+  function tick(){
+    var d = new Date();
+    var h = d.getHours(), m = d.getMinutes();
+    document.getElementById('clock').textContent =
+      (h<10?'0':'')+h+':'+(m<10?'0':'')+m+' '+(h<12?'AM':'PM');
+  }
+  tick(); setInterval(tick, 10000);
+</script>
+</body>
+</html>
