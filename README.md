@@ -64,6 +64,23 @@ because, as far as Windows is concerned, it *is* one.
 <sup>Fine print: requires Windows 10/11 x64 and the built-in .NET Framework 4.x (preinstalled).
 The 60-second run applies the resolution; a reboot persists it.</sup>
 
+## Multilingual
+
+The program and the site speak 7 languages, auto-detected from your OS (or picked from
+the **Lingua** menu / saved in the registry):
+
+| Language | Site |
+|---|---|
+| Italiano | [it.html](https://culturedigitali.github.io/GhostScreen/it.html) |
+| Español | [es.html](https://culturedigitali.github.io/GhostScreen/es.html) |
+| Français | [fr.html](https://culturedigitali.github.io/GhostScreen/fr.html) |
+| Deutsch | [de.html](https://culturedigitali.github.io/GhostScreen/de.html) |
+| English | [index.html](https://culturedigitali.github.io/GhostScreen/) |
+| 中文 | [zh.html](https://culturedigitali.github.io/GhostScreen/zh.html) |
+| 日本語 | [ja.html](https://culturedigitali.github.io/GhostScreen/ja.html) |
+
+Command line: `GhostScreen.exe /lang:de /nosound /quiet` (silent mode for scripts).
+
 ## Use cases
 
 - **Headless servers** managed over RDP — real resolution, real productivity
