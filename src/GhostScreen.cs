@@ -219,7 +219,7 @@ namespace GhostScreen {
             btnRestart.Click += delegate { StartRestart(); };
             btnAbout = NewButton("About...", 300, 160, 128, 28);
             btnAbout.Click += delegate { W95MsgBox.Show(
-                "GhostScreen 95 v1.0.0\nVirtual Display Suite per PC headless.\n\nInstalla un display virtuale e sblocca\nrisoluzioni reali fino a 4K senza\nmonitor fisico.\n\nDriver: Virtual-Display-Driver (MikeTheTech)\nMIT License - GhostScreen Project", "Informazioni su GhostScreen", appIcon, false); };
+                "GhostScreen 95 v1.0.0\nVirtual Display Suite per PC headless.\n\nInstalla un display virtuale e sblocca\nrisoluzioni reali fino a 4K senza\nmonitor fisico.\n\nRealizzato da Luigi Strazzullo\nper Culture Digitali Srl\n\nDriver: Virtual-Display-Driver (MikeTheTech)\nMIT License - GhostScreen Project", "Informazioni su GhostScreen", appIcon, false); };
 
             // ---- log ----
             GroupBox gLog = new GroupBox();

@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GhostScreen 95 — The display that doesn't exist</title>
+<meta name="description" content="GhostScreen 95: a single-file Windows 95-styled tool that installs a virtual display on headless Windows PCs and unlocks real resolutions up to 4K. No monitor needed. By Luigi Strazzullo for Culture Digitali Srl.">
+<meta name="keywords" content="ghostscreen, virtual display, headless pc, virtual monitor, windows 95, rdp, chrome remote desktop, 4k, dummy plug, resolution fix, server, hdmi dummy">
+<meta property="og:title" content="GhostScreen 95 — The display that doesn't exist">
+<meta property="og:description" content="A phantom monitor for headless Windows machines. One EXE, real resolutions up to 4K, zero hardware. By Luigi Strazzullo for Culture Digitali Srl.">
+<meta property="og:image" content="https://CultureDigitali.github.io/GhostScreen/../assets/banner.png">
+<meta property="og:url" content="https://CultureDigitali.github.io/GhostScreen/">
+<meta property="og:type" content="website">
+<style>
+  :root { --face:#c0c0c0; --dark:#000; --navy:#000080; --blue2:#1084d0; --teal:#008080; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html, body { height:100%; }
+  body {
+    font-family:"MS Sans Serif","Tahoma",Verdana,sans-serif;
+    background:var(--teal);
+    color:var(--dark);
+    padding:18px 10px 56px 10px;
+  }
+  /* ============ DESKTOP WINDOW ============ */
+  .window {
+    max-width:900px; margin:0 auto;
+    background:var(--face);
+    border:2px solid #dfdfdf;
+    border-top-color:#fff; border-left-color:#fff;
+    border-bottom-color:#404040; border-right-color:#404040;
+    box-shadow:4px 4px 0 rgba(0,0,0,.35);
+  }
+  .titlebar {
+    background:linear-gradient(90deg,#000080,#1084d0);
+    color:#fff; font-weight:bold; font-size:13px;
+    padding:3px 4px; display:flex; align-items:center; gap:6px;
+  }
+  .titlebar img { width:16px; height:16px; image-rendering:pixelated; }
+  .titlebar .t { flex:1; white-space:nowrap; overflow:hidden; }
+  .tb-btn {
+    width:18px; height:15px; font-size:10px; line-height:1;
+    background:var(--face); color:var(--dark); font-weight:normal;
+    border:1px solid #fff; border-right-color:#404040; border-bottom-color:#404040;
+    text-align:center; cursor:default; user-select:none; display:inline-block; padding-top:2px;
+  }
+  .menubar {
+    display:flex; gap:2px; padding:2px 4px;
+    border-bottom:1px solid #fff; font-size:12px;
+  }
+  .menubar a { color:var(--dark); text-decoration:none; padding:1px 6px; }
+  .menubar a:hover { background:var(--navy); color:#fff; }
+  .content { padding:16px; font-size:13px; line-height:1.5; }
+  /* ============ HERO ============ */
+  .hero { text-align:center; padding:10px 0 6px 0; }
+  .hero h1 { font-size:30px; letter-spacing:1px; text-shadow:1px 1px 0 #fff; }
+  .hero .tag { font-size:16px; margin:4px 0 10px 0; }
+  .hero img.banner { width:100%; max-width:640px; border:1px solid #808080; image-rendering:pixelated; }
+  .btn-row { margin-top:14px; display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
+  /* ============ WIN95 BUTTON ============ */
+  .btn {
+    font-family:inherit; font-size:13px; padding:6px 16px;
+    background:var(--face); color:var(--dark); cursor:pointer;
+    border:2px solid #fff; border-right-color:#404040; border-bottom-color:#404040;
+    box-shadow:1px 1px 0 #808080;
+    text-decoration:none; display:inline-block;
+  }
+  .btn:active, .btn:hover { border:2px solid #404040; border-right-color:#fff; border-bottom-color:#fff; }
+  .btn.primary { font-weight:bold; }
+  /* ============ SECTIONS ============ */
+  section { margin-top:18px; }
+  h2 {
+    background:var(--navy); color:#fff; font-size:13px; font-weight:bold;
+    padding:2px 8px; margin-bottom:8px;
+  }
+  h3 { font-size:13px; margin:10px 0 4px 0; }
+  p { margin-bottom:6px; }
+  .panel {
+    border:2px solid #808080; border-top-color:#fff; border-left-color:#fff;
+    background:var(--face); padding:10px 12px; margin-bottom:10px;
+  }
+  ul { margin:4px 0 8px 22px; }
+  .res-tbl { border-collapse:collapse; margin:6px 0; }
+  .res-tbl td { border:1px solid #808080; padding:3px 10px; background:#fff; font-size:12px; }
+  .res-tbl td.b { background:#ffffcc; }
+  code { background:#fff; border:1px solid #808080; padding:0 4px; font-size:12px; }
+  a { color:#0000ee; }
+  a:hover { color:#ff0000; }
+  .ghostline { text-align:center; font-style:italic; color:#404040; margin-top:14px; }
+  /* ============ TASKBAR ============ */
+  .taskbar {
+    position:fixed; left:0; right:0; bottom:0; height:36px;
+    background:var(--face);
+    border-top:2px solid #fff; border-left:0;
+    display:flex; align-items:center; padding:0 4px; gap:6px;
+    font-size:12px; z-index:10;
+  }
+  .taskbar .start {
+    display:flex; align-items:center; gap:5px; height:26px; padding:0 8px;
+    font-weight:bold; text-decoration:none; color:var(--dark);
+    border:2px solid #fff; border-right-color:#404040; border-bottom-color:#404040;
+    background:var(--face);
+  }
+  .taskbar .start img { width:18px; height:18px; }
+  .taskbar .spacer { flex:1; }
+  .taskbar .tray {
+    border:2px solid #808080; border-top-color:#404040; border-left-color:#404040;
+    padding:2px 8px; background:var(--face); color:var(--dark);
+  }
+  .foot-note { text-align:center; font-size:11px; color:#e0ffff; margin-top:10px; }
+  .foot-note a { color:#fff; }
+</style>
+</head>
+<body>
+
+<!-- ================= MAIN WINDOW ================= -->
+<div class="window">
+  <div class="titlebar">
+    <img src="../assets/logo.png" alt="GhostScreen logo" width="16" height="16">
+    <span class="t">GhostScreen 95 — Virtual Display Suite</span>
+    <span class="tb-btn">▁</span><span class="tb-btn">✕</span>
+  </div>
+  <div class="menubar">
+    <a href="#download">File ▾</a>
+    <a href="#features">View ▾</a>
+    <a href="#credits">?</a>
+  </div>
+
+  <div class="content">
+
+    <!-- HERO -->
+    <div class="hero">
+      <h1>GhostScreen 95</h1>
+      <div class="tag"><b>The display that doesn't exist.</b></div>
+      <img class="banner" src="../assets/banner.png" alt="GhostScreen 95 banner — a ghost monitor on a Win95 desktop">
+      <p style="margin-top:10px">
+        Your headless PC just got a monitor. A <b>phantom</b> one. In <b>4K</b>.<br>
+        One single-file EXE · No installers · No internet needed · Windows 10/11 x64
+      </p>
+      <div class="btn-row" id="download">
+        <a class="btn primary" href="https://github.com/CultureDigitali/GhostScreen/releases/latest/download/GhostScreen-1.0.0.exe">⬇ Download GhostScreen-1.0.0.exe</a>
+        <a class="btn" href="https://github.com/CultureDigitali/GhostScreen">View Source on GitHub</a>
+      </div>
+    </div>
+
+    <!-- THE PROBLEM -->
+    <section>
+      <h2>The problem</h2>
+      <div class="panel">
+        <p>Your machine is a <b>headless box</b>: a server in a rack, a laptop with a broken screen,
+        a workstation reached over RDP or Chrome Remote Desktop. No physical monitor — so Windows
+        gives you <b>no monitor at all</b>.</p>
+        <ul>
+          <li>Remote sessions cap at a blurry <b>800x600</b> (or worse)</li>
+          <li>Apps you <i>know</i> are fullscreen show a tiny centered window</li>
+          <li>Games, design tools and media players refuse to render properly</li>
+          <li>UI scaling makes everything look like a spreadsheet from 1993</li>
+        </ul>
+        <p>You can't buy a monitor for a machine you'll never look at. So what do you do?</p>
+      </div>
+    </section>
+
+    <!-- THE FIX -->
+    <section>
+      <h2>The fix</h2>
+      <div class="panel">
+        <p><b>GhostScreen 95</b> installs a <i>virtual display</i> — a monitor that exists only in
+        software — and dials in the resolution <b>you</b> choose:</p>
+        <table class="res-tbl">
+          <tr><td class="b">2560x1440</td><td class="b">recommended</td></tr>
+          <tr><td>1920x1080</td><td>Full HD</td></tr>
+          <tr><td>1366x768</td><td>laptop standard</td></tr>
+          <tr><td>1280x720</td><td>HD ready</td></tr>
+        </table>
+        <p>…all at <b>60 Hz</b> (the driver supports up to 4K). The OS thinks a beautiful monitor is
+        plugged in. Remote clients happily render widescreen, full-HD sessions. Your headless rig
+        behaves like a normal desktop — because, as far as Windows is concerned, it <i>is</i> one.</p>
+        <p class="ghostline">"A ghost screen. It's there. It isn't. Nobody knows. Windows loves it."</p>
+      </div>
+    </section>
+
+    <!-- FEATURES -->
+    <section id="features">
+      <h2>What you get</h2>
+      <div class="panel">
+        <ul>
+          <li><b>One EXE, everything inside</b> — driver, catalog, settings, tools. No installer, no leftovers.</li>
+          <li><b>Windows 95 soul</b> — a faithful '95-era UI. Gradient title bar, chiseled buttons, MS Sans Serif.</li>
+          <li><b>Self-healing</b> — detects a missing or stale driver, reinstalls, restarts the display, retries. Works on a fresh format.</li>
+          <li><b>Zero internet</b> — everything runs offline, from the EXE.</li>
+          <li><b>Re-runnable</b> — you formatted? Run it again. It's idempotent.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- CASE STUDIES -->
+    <section>
+      <h2>Who it's for</h2>
+      <div class="panel">
+        <ul>
+          <li><b>Headless servers</b> managed over RDP — real resolution, real productivity</li>
+          <li><b>Laptops with broken screens</b> — the machine isn't dead, it just needs a phantom panel</li>
+          <li><b>HTPCs</b> attached to a TV that's often off — keep the desktop sane</li>
+          <li><b>CI/CD and test labs</b> — stable virtual displays for UI automation</li>
+          <li><b>Remote work</b> via Chrome Remote Desktop / AnyDesk / TeamViewer — crisp widescreen</li>
+          <li><b>GPU farms and mining rigs</b> — the software dummy plug</li>
+        </ul>
+        <p>Six full stories: <a href="./CASE-STUDIES.md">docs/CASE-STUDIES.md</a></p>
+      </div>
+    </section>
+
+    <!-- QUICK START -->
+    <section>
+      <h2>Quick start</h2>
+      <div class="panel">
+        <p><code>1.</code> Download the EXE · <code>2.</code> Right-click → <b>Run as administrator</b> ·
+        <code>3.</code> Pick your resolution · <code>4.</code> Hit <b>Installa e Applica</b> · Done. 🎩</p>
+        <p style="font-size:11px; color:#404040;">Requires Windows 10/11 x64 and the built-in .NET Framework 4.x (preinstalled). MIT licensed.</p>
+      </div>
+    </section>
+
+    <!-- CREDITS -->
+    <section id="credits">
+      <h2>Credits</h2>
+      <div class="panel">
+        <p><b>GhostScreen 95 is crafted by <a href="https://github.com/CultureDigitali">Luigi Strazzullo</a>
+        for <b>Culture Digitali Srl</b></b> — with the '95-era honesty we all deserve.</p>
+        <p>Virtual display driver: <a href="https://github.com/itsmikethetech/Virtual-Display-Driver">MikeTheTech / Virtual-Display-Driver</a> (MIT) ·
+        <code>devcon.exe</code>: Microsoft Windows Driver Kit · Everything else: original work.</p>
+        <p>License: <a href="../LICENSE">MIT</a> · Changelog: <a href="../CHANGELOG.md">CHANGELOG.md</a> ·
+        Product vision: <a href="./PRODUCT.md">PRODUCT.md</a></p>
+      </div>
+    </section>
+
+    <p class="ghostline">"Il monitor non c'è, ma la risoluzione sì."</p>
+  </div>
+</div>
+
+<!-- ================= TASKBAR ================= -->
+<div class="taskbar">
+  <a class="start" href="#download">
+    <img src="../assets/logo.png" alt="Start" width="18" height="18"> Start
+  </a>
+  <span style="border:1px solid #808080; border-top-color:#fff; border-left-color:#fff; padding:2px 6px; font-weight:bold; background:var(--face);">GhostScreen 95</span>
+  <span class="spacer"></span>
+  <span class="tray" id="clock">--:-- --</span>
+</div>
+
+<div class="foot-note">
+  GhostScreen is an independent project by Luigi Strazzullo for Culture Digitali Srl.
+  Not affiliated with Microsoft. Windows 95 is a trademark of Microsoft Corporation — we just miss it.
+</div>
+
+<script>
+  function tick(){
+    var d = new Date();
+    var h = d.getHours(), m = d.getMinutes();
+    document.getElementById('clock').textContent =
+      (h<10?'0':'')+h+':'+(m<10?'0':'')+m+' '+(h<12?'AM':'PM');
+  }
+  tick(); setInterval(tick, 10000);
+</script>
+</body>
+</html>

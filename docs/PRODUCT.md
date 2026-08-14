@@ -89,6 +89,12 @@ session (RDP) remembers it.
 It adds a *second* display. Your real one stays untouched — and once the virtual
 monitor exists, your real one can even be turned off entirely.
 
+## Credits
+
+GhostScreen 95 is **designed and developed by Luigi Strazzullo for Culture Digitali Srl**.
+The virtual display driver is the open-source Virtual-Display-Driver by MikeTheTech (MIT);
+`devcon.exe` comes from the Microsoft Windows Driver Kit.
+
 ## Disclaimer
 
 GhostScreen is an independent project. Not affiliated with Microsoft; Windows 95 is a

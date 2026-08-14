@@ -83,9 +83,14 @@ See [docs/CASE-STUDIES.md](docs/CASE-STUDIES.md) for the full stories.
 
 ## Credits
 
+**GhostScreen 95 is crafted by [Luigi Strazzullo](https://github.com/CultureDigitali)
+for Culture Digitali Srl** — with the '95-era honesty we all deserve.
+
 - Virtual display driver: [MikeTheTech / Virtual-Display-Driver](https://github.com/itsmikethetech/Virtual-Display-Driver) (MIT)
 - `devcon.exe`: Windows Driver Kit (Microsoft)
-- Everything else: original work by the GhostScreen project
+- Everything else: original work by Luigi Strazzullo / Culture Digitali Srl
+
+**Live project site:** [https://CultureDigitali.github.io/GhostScreen](https://CultureDigitali.github.io/GhostScreen)
 
 ## License
 
