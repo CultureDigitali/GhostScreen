@@ -4,46 +4,75 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Threading;
 using System.Windows.Forms;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Globalization;
+using System.Net;
 using System.Security.Principal;
 using Microsoft.Win32;
+using System.IO.Compression;
 
 namespace GhostScreen {
     static class Program {
-        public static bool Quiet;
+        public static bool Quiet, ApplyMode, UninstallMode;
+        public static int MusicMode = -1;   // -1 unset, 0 chip, 1 midi, 2 off
+        public static int Volume = -1;      // -1 unset
+        public static string ThemeCode = null;
+
+        [DllImport("user32.dll")]
+        static extern bool SetProcessDPIAware();
 
         [STAThread]
         static void Main(string[] args) {
+            try { SetProcessDPIAware(); } catch { }
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            for (int i = 0; i < args.Length; i++) {
-                string a = args[i].ToLowerInvariant();
+            foreach (string a0 in args) {
+                string a = a0.ToLowerInvariant();
                 if (a.StartsWith("/lang:")) {
                     string c = a.Substring(6);
-                    if (c == "it" || c == "es" || c == "fr" || c == "de" || c == "en" || c == "zh" || c == "ja")
+                    if (c == "it" || c == "es" || c == "fr" || c == "de" || c == "en" || c == "zh" || c == "ja" || c == "pt" || c == "ru" || c == "ko" || c == "nl")
                         L.OverrideLang = c;
                 } else if (a == "/nosound") {
                     Chiptune.Muted = true;
+                    Midi.Muted = true;
                 } else if (a == "/quiet") {
                     Quiet = true;
+                } else if (a == "/apply") {
+                    ApplyMode = true; Quiet = true;
+                    Chiptune.Muted = true; Midi.Muted = true;
+                } else if (a == "/uninstall") {
+                    UninstallMode = true; Quiet = true;
+                    Chiptune.Muted = true; Midi.Muted = true;
+                } else if (a.StartsWith("/music:")) {
+                    string m = a.Substring(7);
+                    if (m == "chip") MusicMode = 0;
+                    else if (m == "midi") MusicMode = 1;
+                    else if (m == "off") MusicMode = 2;
+                } else if (a.StartsWith("/volume:")) {
+                    int v;
+                    if (int.TryParse(a.Substring(8), out v)) Volume = Math.Max(0, Math.Min(100, v));
+                } else if (a.StartsWith("/theme:")) {
+                    string t = a.Substring(7);
+                    if (t == "teal" || t == "plum" || t == "eggplant" || t == "dark") ThemeCode = t;
                 }
             }
-            Application.Run(new MainForm());
+            MainForm f = new MainForm();
+            if (!ApplyMode && !UninstallMode) Application.Run(f);
         }
     }
 
     // ============================================================
-    // L: translation engine (it, es, fr, de, en, zh, ja)
+    // L: translation engine (11 languages)
     // ============================================================
     static class L {
         public static string OverrideLang = null;
         static Dictionary<string, Dictionary<string, string>> T = new Dictionary<string, Dictionary<string, string>>();
-        static string[] langs = { "it", "es", "fr", "de", "en", "zh", "ja" };
-        static string[] nativeNames = { "Italiano", "Español", "Français", "Deutsch", "English", "中文", "日本語" };
+        static string[] langs = { "it", "es", "fr", "de", "en", "zh", "ja", "pt", "ru", "ko", "nl" };
+        static string[] nativeNames = { "Italiano", "Español", "Français", "Deutsch", "English", "中文", "日本語", "Português", "Русский", "한국어", "Nederlands" };
         static bool loaded;
         public static string Code = "en";
         public static Font UIFont;
@@ -55,14 +84,14 @@ namespace GhostScreen {
             try {
                 using (Stream s = Assembly.GetExecutingAssembly().GetManifestResourceStream("Res.lang.txt")) {
                     if (s != null) {
-                        using (StreamReader r = new StreamReader(s, System.Text.Encoding.UTF8)) {
+                        using (StreamReader r = new StreamReader(s, Encoding.UTF8)) {
                             string line;
                             while ((line = r.ReadLine()) != null) {
                                 if (line.Length == 0) continue;
                                 string[] p = line.Split('\t');
-                                if (p.Length < 8) continue;
+                                if (p.Length < 12) continue;
                                 Dictionary<string, string> d = new Dictionary<string, string>();
-                                for (int i = 0; i < 7; i++) d[langs[i]] = p[i + 1].Replace("\\n", "\n");
+                                for (int i = 0; i < 11; i++) d[langs[i]] = p[i + 1].Replace("\\n", "\n");
                                 T[p[0]] = d;
                             }
                         }
@@ -74,7 +103,7 @@ namespace GhostScreen {
         public static string Detect() {
             try {
                 string c = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName.ToLowerInvariant();
-                if (c == "it" || c == "es" || c == "fr" || c == "de" || c == "zh" || c == "ja") return c;
+                if (c == "it" || c == "es" || c == "fr" || c == "de" || c == "zh" || c == "ja" || c == "pt" || c == "ru" || c == "ko" || c == "nl") return c;
             } catch { }
             return "en";
         }
@@ -85,6 +114,8 @@ namespace GhostScreen {
             string fam = "MS Sans Serif";
             if (code == "zh") fam = "Microsoft YaHei";
             else if (code == "ja") fam = "Yu Gothic UI";
+            else if (code == "ko") fam = "Malgun Gothic";
+            else if (code == "ru") fam = "Tahoma";
             try {
                 using (Font f = new Font(fam, 8F)) UIFont = new Font(fam, 8F);
             } catch {
@@ -118,6 +149,7 @@ namespace GhostScreen {
         public static bool Muted;
         static byte[] wav;
         static bool playing;
+        static int curVol = -1;
         const int SR = 44100;
 
         [DllImport("winmm.dll")]
@@ -130,18 +162,20 @@ namespace GhostScreen {
         const uint SND_MEMORY = 0x0004;
         const uint SND_LOOP = 0x0008;
 
-        public static void Start() {
-            if (Muted || playing) return;
+        public static void Start(int vol) {
+            if (Muted || (playing && curVol == vol)) return;
             try {
-                if (wav == null) wav = Build();
-PlaySound((string)null, IntPtr.Zero, 0);
+                wav = Build(vol);
+                PlaySound((string)null, IntPtr.Zero, 0);
                 playing = PlaySound(wav, IntPtr.Zero, SND_ASYNC | SND_MEMORY | SND_LOOP | SND_NODEFAULT);
+                curVol = vol;
             } catch { }
         }
 
         public static void Stop() {
             try { PlaySound((string)null, IntPtr.Zero, 0); } catch { }
             playing = false;
+            curVol = -1;
         }
 
         static void AddSquare(double[] buf, int start, int len, double freq, double amp, double duty) {
@@ -165,8 +199,8 @@ PlaySound((string)null, IntPtr.Zero, 0);
             }
         }
 
-        static byte[] Build() {
-            // 140 BPM, 4 bars of 8 eighths
+        static byte[] Build(int volPct) {
+            double vol = Math.Max(0.0, Math.Min(1.0, volPct / 100.0));
             double eighth = 60.0 / 140.0 / 2.0;
             int eighthS = (int)(eighth * SR);
             int n = 32 * eighthS;
@@ -182,21 +216,21 @@ PlaySound((string)null, IntPtr.Zero, 0);
 
             for (int i = 0; i < 32; i++) {
                 int t0 = i * eighthS;
-                AddSquare(mix, t0, (int)(eighthS * 0.88), lead[i], 0.32, 0.5);
-                if (i % 2 == 1) AddNoise(mix, t0, (int)(0.05 * SR), 0.09);
+                AddSquare(mix, t0, (int)(eighthS * 0.88), lead[i], 0.32 * vol, 0.5);
+                if (i % 2 == 1) AddNoise(mix, t0, (int)(0.05 * SR), 0.09 * vol);
             }
             for (int i = 0; i < 8; i++) {
                 int t0 = i * 4 * eighthS;
-                AddSquare(mix, t0, 4 * eighthS - 2, bass[i], 0.42, 0.5);
+                AddSquare(mix, t0, 4 * eighthS - 2, bass[i], 0.42 * vol, 0.5);
             }
 
             MemoryStream ms = new MemoryStream();
-            BinaryWriter w = new BinaryWriter(ms, System.Text.Encoding.ASCII);
+            BinaryWriter w = new BinaryWriter(ms, Encoding.ASCII);
             int dataLen = n * 2;
-            w.Write(System.Text.Encoding.ASCII.GetBytes("RIFF"));
+            w.Write(Encoding.ASCII.GetBytes("RIFF"));
             w.Write(36 + dataLen);
-            w.Write(System.Text.Encoding.ASCII.GetBytes("WAVE"));
-            w.Write(System.Text.Encoding.ASCII.GetBytes("fmt "));
+            w.Write(Encoding.ASCII.GetBytes("WAVE"));
+            w.Write(Encoding.ASCII.GetBytes("fmt "));
             w.Write(16);
             w.Write((short)1);       // PCM
             w.Write((short)1);       // mono
@@ -204,7 +238,7 @@ PlaySound((string)null, IntPtr.Zero, 0);
             w.Write(SR * 2);
             w.Write((short)2);
             w.Write((short)16);
-            w.Write(System.Text.Encoding.ASCII.GetBytes("data"));
+            w.Write(Encoding.ASCII.GetBytes("data"));
             w.Write(dataLen);
             for (int i = 0; i < n; i++) {
                 double v = mix[i];
@@ -218,18 +252,153 @@ PlaySound((string)null, IntPtr.Zero, 0);
     }
 
     // ============================================================
-    // Win95 styling
+    // Midi: real .mid playback via MCI (General MIDI square lead)
+    // ============================================================
+    static class Midi {
+        public static bool Muted;
+        static string path;
+        static bool playing;
+
+        [DllImport("winmm.dll", CharSet = CharSet.Ansi)]
+        static extern int mciSendString(string command, StringBuilder ret, int retLen, IntPtr hwnd);
+
+        public static void Play(int vol) {
+            if (Muted || playing) return;
+            try {
+                if (path == null || !File.Exists(path)) path = Build();
+                mciSendString("close ghostmidi", null, 0, IntPtr.Zero);
+                string open = "open \"" + path + "\" type sequencer alias ghostmidi";
+                if (mciSendString(open, null, 0, IntPtr.Zero) == 0) {
+                    SetVolume(vol);
+                    mciSendString("play ghostmidi repeat", null, 0, IntPtr.Zero);
+                    playing = true;
+                }
+            } catch { }
+        }
+
+        public static void SetVolume(int vol) {
+            try {
+                mciSendString("setaudio ghostmidi volume to " + Math.Max(0, Math.Min(1000, vol * 10)), null, 0, IntPtr.Zero);
+            } catch { }
+        }
+
+        public static void Stop() {
+            try {
+                if (playing) { mciSendString("close ghostmidi", null, 0, IntPtr.Zero); playing = false; }
+            } catch { }
+        }
+
+        static int Freq2Note(double freq) {
+            return (int)Math.Round(69 + 12 * Math.Log(freq / 440.0, 2));
+        }
+
+        static void WriteVar(BinaryWriter w, int v) {
+            uint u = (uint)v;
+            byte[] b = new byte[4];
+            int n = 0;
+            b[n++] = (byte)(u & 0x7F);
+            u >>= 7;
+            while (u > 0) {
+                b[n++] = (byte)((u & 0x7F) | 0x80);
+                u >>= 7;
+            }
+            for (int i = n - 1; i >= 0; i--) w.Write(b[i]);
+        }
+
+        static string Build() {
+            string p = Path.Combine(Path.GetTempPath(), "GhostScreen95.mid");
+            MemoryStream ms = new MemoryStream();
+            BinaryWriter w = new BinaryWriter(ms);
+            w.Write(Encoding.ASCII.GetBytes("MThd"));
+            w.Write(4);
+            w.Write((short)0);   // format 0
+            w.Write((short)1);   // one track
+            w.Write((short)96);  // division
+
+            MemoryStream tr = new MemoryStream();
+            BinaryWriter t = new BinaryWriter(tr);
+            WriteVar(t, 0); t.Write((byte)0xFF); t.Write((byte)0x51); t.Write((byte)3);
+            t.Write((byte)0x06); t.Write((byte)0x8A); t.Write((byte)0x63); // tempo 140 BPM
+            WriteVar(t, 0); t.Write((byte)0xC0); t.Write((byte)0); t.Write((byte)80); // ch0: square lead
+            WriteVar(t, 0); t.Write((byte)0xC1); t.Write((byte)1); t.Write((byte)38); // ch1: synth bass
+
+            double[] lead = {
+                523.25,659.26,783.99,1046.50, 493.88,587.33,783.99,987.77,
+                523.25,659.26,783.99,1046.50, 440.00,523.25,659.26,880.00,
+                392.00,493.88,587.33,783.99, 329.63,392.00,493.88,659.26,
+                523.25,659.26,783.99,1046.50, 392.00,523.25,659.26,1046.50
+            };
+            double[] bass = { 130.81,196.00, 110.00,164.81, 98.00,146.83, 130.81,196.00 };
+            int eighth = 48; // 96 / 2
+
+            for (int i = 0; i < 32; i++) {
+                int note = Freq2Note(lead[i]);
+                WriteVar(t, 0); t.Write((byte)0x90); t.Write((byte)0); t.Write((byte)note); t.Write((byte)95);
+                if (i % 2 == 1) { WriteVar(t, 0); t.Write((byte)0x99); t.Write((byte)1); t.Write((byte)42); t.Write((byte)50); }
+                if (i % 4 == 0) {
+                    int bn = Freq2Note(bass[i / 4]);
+                    WriteVar(t, 0); t.Write((byte)0x91); t.Write((byte)1); t.Write((byte)bn); t.Write((byte)100);
+                }
+                WriteVar(t, (int)(eighth * 0.88)); t.Write((byte)0x80); t.Write((byte)0); t.Write((byte)note); t.Write((byte)64);
+                if (i % 2 == 1) { WriteVar(t, 0); t.Write((byte)0x89); t.Write((byte)1); t.Write((byte)42); t.Write((byte)50); }
+                if (i % 4 == 3) {
+                    int bn = Freq2Note(bass[(i - 3) / 4]);
+                    WriteVar(t, 0); t.Write((byte)0x81); t.Write((byte)1); t.Write((byte)bn); t.Write((byte)64);
+                }
+                WriteVar(t, 96 - (int)(eighth * 0.88));
+            }
+            WriteVar(t, 0); t.Write((byte)0xFF); t.Write((byte)0x2F); t.Write((byte)0);
+
+            w.Write(Encoding.ASCII.GetBytes("MTrk"));
+            w.Write((int)tr.Length);
+            tr.WriteTo(ms);
+            File.WriteAllBytes(p, ms.ToArray());
+            return p;
+        }
+    }
+
+    // ============================================================
+    // W95 styling + themes
     // ============================================================
     static class W95 {
-        public static readonly Color Face = Color.FromArgb(192, 192, 192);
-        public static readonly Color Light = Color.White;
-        public static readonly Color Shadow = Color.FromArgb(128, 128, 128);
-        public static readonly Color Dark = Color.Black;
-        public static readonly Color Title1 = Color.FromArgb(0, 0, 128);
-        public static readonly Color Title2 = Color.FromArgb(16, 132, 208);
-        public static readonly Color Navy = Color.FromArgb(0, 0, 64);
-        public static readonly Color Green = Color.FromArgb(0, 96, 0);
-        public static readonly Color Teal = Color.FromArgb(0, 128, 128);
+        public static Color Face, Light, Shadow, Dark, Title1, Title2, Navy, Green, Teal;
+
+        static W95() { SetTheme("teal"); }
+
+        public static void SetTheme(string t) {
+            Face = Color.FromArgb(192, 192, 192);
+            Light = Color.White;
+            Shadow = Color.FromArgb(128, 128, 128);
+            Dark = Color.Black;
+            Green = Color.FromArgb(0, 96, 0);
+            switch (t) {
+                case "plum":
+                    Title1 = Color.FromArgb(88, 0, 88);
+                    Title2 = Color.FromArgb(196, 120, 208);
+                    Navy = Color.FromArgb(58, 0, 58);
+                    Teal = Color.FromArgb(140, 70, 150);
+                    break;
+                case "eggplant":
+                    Title1 = Color.FromArgb(47, 47, 95);
+                    Title2 = Color.FromArgb(140, 150, 216);
+                    Navy = Color.FromArgb(30, 30, 60);
+                    Teal = Color.FromArgb(70, 70, 120);
+                    break;
+                case "dark":
+                    Title1 = Color.FromArgb(32, 32, 32);
+                    Title2 = Color.FromArgb(96, 96, 96);
+                    Navy = Color.FromArgb(16, 16, 16);
+                    Teal = Color.FromArgb(64, 64, 64);
+                    Green = Color.FromArgb(0, 160, 0);
+                    break;
+                default:
+                    Title1 = Color.FromArgb(0, 0, 128);
+                    Title2 = Color.FromArgb(16, 132, 208);
+                    Navy = Color.FromArgb(0, 0, 64);
+                    Teal = Color.FromArgb(0, 128, 128);
+                    break;
+            }
+        }
     }
 
     class W95Button : Button {
@@ -287,14 +456,19 @@ PlaySound((string)null, IntPtr.Zero, 0);
 
     class W95MsgBox : Form {
         public static void Show(string text, string caption, Icon appIcon, bool error) {
-            W95MsgBox box = new W95MsgBox(text, caption, appIcon, error);
+            W95MsgBox box = new W95MsgBox(text, caption, appIcon, error, false);
             box.ShowDialog();
+        }
+
+        public static bool ShowYesNo(string text, string caption, Icon appIcon) {
+            W95MsgBox box = new W95MsgBox(text, caption, appIcon, false, true);
+            return box.ShowDialog() == DialogResult.Yes;
         }
 
         Rectangle closeRect;
         Font fnt;
 
-        W95MsgBox(string text, string caption, Icon appIcon, bool error) {
+        W95MsgBox(string text, string caption, Icon appIcon, bool error, bool yesNo) {
             fnt = L.UIFont;
             FormBorderStyle = FormBorderStyle.None;
             BackColor = W95.Face;
@@ -303,12 +477,12 @@ PlaySound((string)null, IntPtr.Zero, 0);
             Text = caption;
 
             int tw = TextRenderer.MeasureText(text, fnt).Width;
-            int w = Math.Max(300, Math.Min(tw + 130, 560));
-            int h = 150;
+            int w = Math.Max(320, Math.Min(tw + 140, 620));
+            int h = 160;
             ClientSize = new Size(w, h);
 
             PictureBox pic = new PictureBox();
-            pic.Location = new Point(18, 40);
+            pic.Location = new Point(18, 44);
             pic.Size = new Size(32, 32);
             pic.BackColor = W95.Face;
             if (appIcon != null) pic.Image = new Icon(appIcon, 32, 32).ToBitmap();
@@ -318,23 +492,37 @@ PlaySound((string)null, IntPtr.Zero, 0);
             lb.Font = fnt;
             lb.BackColor = W95.Face;
             lb.ForeColor = W95.Dark;
-            lb.Location = new Point(62, 38);
+            lb.Location = new Point(62, 42);
             lb.AutoSize = false;
-            lb.Size = new Size(w - 90, 70);
+            lb.Size = new Size(w - 92, 78);
             lb.TextAlign = ContentAlignment.MiddleLeft;
 
             W95Button ok = new W95Button();
             ok.Text = L.Get("msg_ok");
             ok.Font = fnt;
             ok.Size = new Size(90, 26);
-            ok.Location = new Point((w - 90) / 2, h - 40);
+            ok.Location = new Point((w - 90) / 2, h - 42);
             ok.DialogResult = DialogResult.OK;
+
+            W95Button yes = new W95Button();
+            yes.Text = L.Get("msg_yes");
+            yes.Font = fnt;
+            yes.Size = new Size(90, 26);
+            yes.Location = new Point((w - 190) / 2, h - 42);
+            yes.DialogResult = DialogResult.Yes;
+
+            W95Button no = new W95Button();
+            no.Text = L.Get("msg_no");
+            no.Font = fnt;
+            no.Size = new Size(90, 26);
+            no.Location = new Point((w - 190) / 2 + 100, h - 42);
+            no.DialogResult = DialogResult.No;
 
             Controls.Add(pic);
             Controls.Add(lb);
-            Controls.Add(ok);
+            if (yesNo) { Controls.Add(yes); Controls.Add(no); AcceptButton = yes; }
+            else { Controls.Add(ok); AcceptButton = ok; }
             closeRect = new Rectangle(w - 22, 3, 18, 15);
-            AcceptButton = ok;
         }
 
         protected override void OnPaint(PaintEventArgs e) {
@@ -360,27 +548,36 @@ PlaySound((string)null, IntPtr.Zero, 0);
     }
 
     class MainForm : Form {
+        const string VERSION = "1.1.0";
+
         // ---------- UI ----------
-        RadioButton rbQ, rbF, rbH, rbV;
+        RadioButton rbQ, rbF, rbH, rbV, rbC;
+        NumericUpDown nudW, nudH, nudF;
+        Label lblW, lblH, lblF;
         W95Button btnInstall, btnApply, btnRestart, btnAbout;
         TextBox txtLog;
         Label lblStatus, lblSeg;
         Button btnFile, btnLang, btnHelp;
-        ContextMenuStrip cmFile, cmLang, cmHelp;
+        ContextMenuStrip cmFile, cmLang, cmHelp, cmTray;
         PictureBox pbHead;
         Rectangle minRect, closeRect;
         bool dragging;
         Point dragOff;
         Icon appIcon;
         Bitmap banner, logo;
+        NotifyIcon ni;
 
         // ---------- state ----------
         Thread worker;
         volatile bool busy;
         string LogFile;
         readonly object logLock = new object();
-        int selW, selH;
-        bool musicOn;
+        int selW, selH, selFreq;
+        int musicMode = 0;      // 0 chip, 1 midi, 2 off
+        int volume = 100;
+        string themeCode = "teal";
+        bool autoStart;
+        int customW = 2560, customH = 1440, customF = 60;
 
         // ---------- P/Invoke ----------
         [DllImport("user32.dll", CharSet = CharSet.Unicode)]
@@ -423,19 +620,46 @@ PlaySound((string)null, IntPtr.Zero, 0);
                     logo = new Bitmap(s);
             } catch { }
 
-            // ---- language ----
+            string win = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+            LogFile = Path.Combine(win, "Temp", "GhostScreen.log");
+
+            // ---- settings from registry ----
             string code = L.Detect();
             try {
                 using (RegistryKey k = Registry.CurrentUser.OpenSubKey(@"Software\GhostScreen")) {
                     if (k != null) {
                         string v = k.GetValue("Lang") as string;
                         if (v != null && v.Length == 2) code = v;
+                        string th = k.GetValue("Theme") as string;
+                        if (th != null) themeCode = th;
+                        int mv;
+                        if (int.TryParse(k.GetValue("Music") as string, out mv)) musicMode = mv;
+                        int vl;
+                        if (int.TryParse(k.GetValue("Volume") as string, out vl)) volume = vl;
+                        int cw;
+                        if (int.TryParse(k.GetValue("CustomW") as string, out cw)) customW = cw;
+                        int ch;
+                        if (int.TryParse(k.GetValue("CustomH") as string, out ch)) customH = ch;
+                        int cf;
+                        if (int.TryParse(k.GetValue("CustomF") as string, out cf)) customF = cf;
+                        string as_ = k.GetValue("AutoStart") as string;
+                        autoStart = as_ == "1";
                     }
                 }
             } catch { }
             if (L.OverrideLang != null) code = L.OverrideLang;
+            if (Program.ThemeCode != null) themeCode = Program.ThemeCode;
+            if (Program.MusicMode >= 0) musicMode = Program.MusicMode;
+            if (Program.Volume >= 0) volume = Program.Volume;
+            if (musicMode < 0 || musicMode > 2) musicMode = 0;
+            if (volume < 0 || volume > 100) volume = 100;
+            W95.SetTheme(themeCode);
             L.Set(code);
             Font = L.UIFont;
+
+            // ---- silent modes ----
+            if (Program.ApplyMode) { RunSilentApply(); return; }
+            if (Program.UninstallMode) { RunSilentUninstall(); return; }
 
             Text = "GhostScreen 95";
             FormBorderStyle = FormBorderStyle.None;
@@ -444,9 +668,6 @@ PlaySound((string)null, IntPtr.Zero, 0);
             StartPosition = FormStartPosition.CenterScreen;
             DoubleBuffered = true;
             Icon = appIcon;
-
-            string win = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
-            LogFile = Path.Combine(win, "Temp", "GhostScreen.log");
 
             // ---- header banner ----
             if (banner != null) {
@@ -500,6 +721,24 @@ PlaySound((string)null, IntPtr.Zero, 0);
             rbF = NewRadio(16, 56);
             rbH = NewRadio(16, 84);
             rbV = NewRadio(16, 112);
+
+            rbC = NewRadio(170, 28);
+            rbC.CheckedChanged += delegate {
+                bool on = rbC.Checked;
+                nudW.Enabled = on; nudH.Enabled = on; nudF.Enabled = on;
+            };
+            lblW = NewSmallLabel(170, 52, 90);
+            nudW = NewNud(262, 50, 96, 640, 7680);
+            lblH = NewSmallLabel(170, 76, 90);
+            nudH = NewNud(262, 74, 96, 480, 4320);
+            lblF = NewSmallLabel(170, 100, 90);
+            nudF = NewNud(262, 98, 96, 25, 240);
+            nudW.Value = Math.Max(640, Math.Min(7680, customW));
+            nudH.Value = Math.Max(480, Math.Min(4320, customH));
+            nudF.Value = Math.Max(25, Math.Min(240, customF));
+            bool cOn = false;
+            nudW.Enabled = cOn; nudH.Enabled = cOn; nudF.Enabled = cOn;
+
             Label note = new Label();
             noteText = note;
             note.Font = Font;
@@ -507,7 +746,12 @@ PlaySound((string)null, IntPtr.Zero, 0);
             note.BackColor = W95.Face;
             note.Location = new Point(16, 140);
             note.AutoSize = true;
-            gRes.Controls.Add(rbQ); gRes.Controls.Add(rbF); gRes.Controls.Add(rbH); gRes.Controls.Add(rbV); gRes.Controls.Add(note);
+            gRes.Controls.Add(rbQ); gRes.Controls.Add(rbF); gRes.Controls.Add(rbH); gRes.Controls.Add(rbV);
+            gRes.Controls.Add(rbC);
+            gRes.Controls.Add(lblW); gRes.Controls.Add(nudW);
+            gRes.Controls.Add(lblH); gRes.Controls.Add(nudH);
+            gRes.Controls.Add(lblF); gRes.Controls.Add(nudF);
+            gRes.Controls.Add(note);
 
             // ---- actions ----
             btnInstall = NewButton(380, 210, 124, 28);
@@ -576,14 +820,27 @@ PlaySound((string)null, IntPtr.Zero, 0);
             closeRect = new Rectangle(ClientSize.Width - 22, 3, 18, 15);
             AcceptButton = btnInstall;
 
-            ApplyLanguage();
-            Chiptune.Start();
-            musicOn = !Chiptune.Muted;
+            // ---- tray ----
+            ni = new NotifyIcon();
+            ni.Icon = appIcon;
+            ni.Text = "GhostScreen 95";
+            ni.Visible = true;
+            ni.DoubleClick += delegate { ShowForm(); };
+            cmTray = NewMenu();
+            ni.ContextMenuStrip = cmTray;
 
+            ApplyLanguage();
+            if (musicMode == 0) Chiptune.Start(volume);
+            else if (musicMode == 1) Midi.Play(volume);
+            Log(L.Get("log_music", MusicName()));
             Log(L.Get("log_lang", L.Code));
             Log(L.Get("log_admin", IsAdmin()));
             if (!IsAdmin()) Log(L.Get("log_not_admin"));
             Log(L.Get("log_cur_res", CurrentResolution()));
+            if (autoStart && IsAdmin()) {
+                string cmd = "\"" + Application.ExecutablePath + "\" /apply";
+                Run("schtasks.exe", "/create /tn \"GhostScreen AutoApply\" /tr \"" + cmd + "\" /sc onlogon /rl highest /f");
+            }
             if (IsVddInstalled()) {
                 Log(L.Get("log_drv_inst"));
                 StartApply();
@@ -593,14 +850,50 @@ PlaySound((string)null, IntPtr.Zero, 0);
             }
         }
 
+        // ---------- silent modes ----------
+        void RunSilentApply() {
+            Log("Silent /apply: " + L.Get("log_custom", customW, customH, customF));
+            selW = customW; selH = customH; selFreq = customF;
+            if (IsVddInstalled()) DoApply(); else DoInstall();
+        }
+
+        void RunSilentUninstall() {
+            Log("Silent /uninstall");
+            DoUninstall();
+        }
+
+        // ---------- close ----------
         protected override void OnFormClosed(FormClosedEventArgs e) {
             base.OnFormClosed(e);
             Chiptune.Stop();
+            Midi.Stop();
+            try { if (ni != null) { ni.Visible = false; ni.Dispose(); ni = null; } } catch { }
             try {
                 using (RegistryKey k = Registry.CurrentUser.CreateSubKey(@"Software\GhostScreen")) {
                     k.SetValue("Lang", L.Code);
+                    k.SetValue("Theme", themeCode);
+                    k.SetValue("Music", musicMode);
+                    k.SetValue("Volume", volume);
+                    k.SetValue("CustomW", customW);
+                    k.SetValue("CustomH", customH);
+                    k.SetValue("CustomF", customF);
+                    k.SetValue("AutoStart", autoStart ? "1" : "0");
                 }
             } catch { }
+        }
+
+        protected override void OnResize(EventArgs e) {
+            base.OnResize(e);
+            if (WindowState == FormWindowState.Minimized) {
+                Hide();
+                WindowState = FormWindowState.Normal;
+            }
+        }
+
+        void ShowForm() {
+            Show();
+            WindowState = FormWindowState.Normal;
+            Activate();
         }
 
         Button NewMenuBtn(int x, int y, int w) {
@@ -623,6 +916,28 @@ PlaySound((string)null, IntPtr.Zero, 0);
             return m;
         }
 
+        Label NewSmallLabel(int x, int y, int w) {
+            Label l = new Label();
+            l.Location = new Point(x, y);
+            l.Size = new Size(w, 18);
+            l.Font = L.UIFont;
+            l.ForeColor = W95.Dark;
+            l.BackColor = W95.Face;
+            l.TextAlign = ContentAlignment.MiddleLeft;
+            return l;
+        }
+
+        NumericUpDown NewNud(int x, int y, int w, int min, int max) {
+            NumericUpDown n = new NumericUpDown();
+            n.Location = new Point(x, y);
+            n.Size = new Size(w, 20);
+            n.Font = L.UIFont;
+            n.Minimum = min;
+            n.Maximum = max;
+            n.BorderStyle = BorderStyle.Fixed3D;
+            return n;
+        }
+
         void ApplyLanguage() {
             Font = L.UIFont;
             SetFontRecursive(this, L.UIFont);
@@ -635,6 +950,10 @@ PlaySound((string)null, IntPtr.Zero, 0);
             rbF.Text = "1920x1080";
             rbH.Text = "1366x768";
             rbV.Text = "1280x720";
+            rbC.Text = L.Get("custom_label");
+            lblW.Text = L.Get("cust_w");
+            lblH.Text = L.Get("cust_h");
+            lblF.Text = L.Get("cust_f");
             noteText.Text = L.Get("res_note");
             ((GroupBox)gResBox).Text = L.Get("grp_res");
             ((GroupBox)gLogBox).Text = L.Get("grp_log");
@@ -642,35 +961,97 @@ PlaySound((string)null, IntPtr.Zero, 0);
             btnApply.Text = L.Get("btn_apply");
             btnRestart.Text = L.Get("btn_restart");
             btnAbout.Text = L.Get("btn_about");
-            lblStatus.Text = L.Get("st_ready");
             lblSeg.Text = "GhostScreen 95";
 
-            // ---- rebuild menus ----
+            RebuildMenus();
+            Invalidate();
+        }
+
+        void RebuildMenus() {
+            // ---- File ----
             cmFile.Items.Clear();
+
             ToolStripMenuItem miMusic = new ToolStripMenuItem(L.Get("music"));
-            miMusic.CheckOnClick = true;
-            miMusic.Checked = musicOn;
-            miMusic.Click += delegate {
-                musicOn = miMusic.Checked;
-                if (musicOn) Chiptune.Start(); else Chiptune.Stop();
-            };
+            ToolStripMenuItem miChip = new ToolStripMenuItem(L.Get("music_chip"));
+            miChip.Tag = 0; miChip.Checked = musicMode == 0;
+            miChip.Click += delegate { SetMusicMode(0); };
+            ToolStripMenuItem miMidi = new ToolStripMenuItem(L.Get("music_midi"));
+            miMidi.Tag = 1; miMidi.Checked = musicMode == 1;
+            miMidi.Click += delegate { SetMusicMode(1); };
+            ToolStripMenuItem miOff = new ToolStripMenuItem(L.Get("music_off"));
+            miOff.Tag = 2; miOff.Checked = musicMode == 2;
+            miOff.Click += delegate { SetMusicMode(2); };
+            miMusic.DropDownItems.Add(miChip);
+            miMusic.DropDownItems.Add(miMidi);
+            miMusic.DropDownItems.Add(miOff);
             cmFile.Items.Add(miMusic);
+
+            ToolStripMenuItem miVol = new ToolStripMenuItem(L.Get("volume"));
+            int[] vols = { 25, 50, 75, 100 };
+            foreach (int v in vols) {
+                ToolStripMenuItem it = new ToolStripMenuItem(v + "%");
+                it.Tag = v;
+                it.Checked = volume == v;
+                it.Click += delegate { SetVolume((int)((ToolStripMenuItem)it).Tag); };
+                miVol.DropDownItems.Add(it);
+            }
+            cmFile.Items.Add(miVol);
+
+            ToolStripMenuItem miTheme = new ToolStripMenuItem(L.Get("theme"));
+            string[] themes = { "teal", "plum", "eggplant", "dark" };
+            string[] themeKeys = { "theme_teal", "theme_plum", "theme_eggplant", "theme_dark" };
+            for (int i = 0; i < themes.Length; i++) {
+                string tc = themes[i];
+                ToolStripMenuItem it = new ToolStripMenuItem(L.Get(themeKeys[i]));
+                it.Tag = tc;
+                it.Checked = themeCode == tc;
+                it.Click += delegate { SetTheme((string)((ToolStripMenuItem)it).Tag); };
+                miTheme.DropDownItems.Add(it);
+            }
+            cmFile.Items.Add(miTheme);
+
             cmFile.Items.Add(new ToolStripSeparator());
+
+            ToolStripMenuItem miAuto = new ToolStripMenuItem(L.Get("autostart"));
+            miAuto.CheckOnClick = true;
+            miAuto.Checked = autoStart;
+            miAuto.Click += delegate { ToggleAutoStart(); };
+            cmFile.Items.Add(miAuto);
+
+            cmFile.Items.Add(new ToolStripSeparator());
+
+            cmFile.Items.Add(L.Get("report"), null, delegate { StartReport(); });
+            cmFile.Items.Add(L.Get("checkupdate"), null, delegate { StartCheckUpdate(); });
+
+            cmFile.Items.Add(new ToolStripSeparator());
+
+            cmFile.Items.Add(L.Get("uninstall"), null, delegate { StartUninstall(); });
+
+            cmFile.Items.Add(new ToolStripSeparator());
+
             cmFile.Items.Add(L.Get("exit"), null, delegate { Close(); });
 
+            // ---- Language ----
             cmLang.Items.Clear();
             for (int i = 0; i < L.Codes.Length; i++) {
-                string code = L.Codes[i];
+                string ccode = L.Codes[i];
                 ToolStripMenuItem it = new ToolStripMenuItem(L.NativeNames[i]);
-                it.Checked = (L.Code == code);
-                it.Click += delegate { SwitchLang(code); };
+                it.Checked = (L.Code == ccode);
+                it.Click += delegate { SwitchLang(ccode); };
                 cmLang.Items.Add(it);
             }
 
+            // ---- Help ----
             cmHelp.Items.Clear();
             cmHelp.Items.Add(L.Get("about"), null, delegate { ShowAbout(); });
 
-            Invalidate();
+            // ---- Tray ----
+            cmTray.Items.Clear();
+            cmTray.Items.Add(L.Get("tray_show"), null, delegate { ShowForm(); });
+            cmTray.Items.Add(L.Get("tray_apply"), null, delegate { StartApply(); });
+            cmTray.Items.Add(L.Get("tray_restart"), null, delegate { StartRestart(); });
+            cmTray.Items.Add(new ToolStripSeparator());
+            cmTray.Items.Add(L.Get("tray_quit"), null, delegate { Close(); });
         }
 
         void SetFontRecursive(Control parent, Font f) {
@@ -680,11 +1061,76 @@ PlaySound((string)null, IntPtr.Zero, 0);
             }
         }
 
+        void Recolor() {
+            RecolorRecursive(this);
+            Invalidate();
+        }
+
+        void RecolorRecursive(Control parent) {
+            foreach (Control c in parent.Controls) {
+                if (!(c is TextBox) && !(c is PictureBox) && !(c is NumericUpDown)) {
+                    try { c.BackColor = W95.Face; } catch { }
+                    try { c.ForeColor = W95.Dark; } catch { }
+                }
+                RecolorRecursive(c);
+            }
+        }
+
         void SwitchLang(string code) {
             if (L.Code == code) return;
             L.Set(code);
             ApplyLanguage();
+            lblStatus.Text = L.Get("st_ready");
+            lblStatus.ForeColor = W95.Navy;
             Log(L.Get("log_lang", code));
+        }
+
+        void SetMusicMode(int mode) {
+            if (musicMode == mode) return;
+            musicMode = mode;
+            Chiptune.Stop();
+            Midi.Stop();
+            if (musicMode == 0) Chiptune.Start(volume);
+            else if (musicMode == 1) Midi.Play(volume);
+            Log(L.Get("log_music", MusicName()));
+            RebuildMenus();
+        }
+
+        void SetVolume(int v) {
+            if (volume == v) return;
+            volume = v;
+            if (musicMode == 0) Chiptune.Start(volume);
+            else if (musicMode == 1) Midi.SetVolume(volume);
+            RebuildMenus();
+        }
+
+        void SetTheme(string t) {
+            if (themeCode == t) return;
+            themeCode = t;
+            W95.SetTheme(t);
+            Recolor();
+            RebuildMenus();
+        }
+
+        void ToggleAutoStart() {
+            autoStart = !autoStart;
+            string task = "\"GhostScreen AutoApply\"";
+            if (autoStart) {
+                string cmd = "\"" + Application.ExecutablePath + "\" /apply";
+                Run("schtasks.exe", "/create /tn " + task + " /tr \"" + cmd + "\" /sc onlogon /rl highest /f");
+            } else {
+                Run("schtasks.exe", "/delete /tn " + task + " /f");
+            }
+            string m = L.Get(autoStart ? "st_autostart_on" : "st_autostart_off");
+            Log(m);
+            SetStatus(m, W95.Navy);
+            RebuildMenus();
+        }
+
+        string MusicName() {
+            if (musicMode == 0) return L.Get("music_chip");
+            if (musicMode == 1) return L.Get("music_midi");
+            return L.Get("music_off");
         }
 
         void ShowAbout() {
@@ -755,6 +1201,15 @@ PlaySound((string)null, IntPtr.Zero, 0);
 
         // ---------- actions ----------
         void ReadSelection() {
+            if (rbC != null && rbC.Checked) {
+                selW = Math.Max(640, Math.Min(7680, (int)nudW.Value));
+                selH = Math.Max(480, Math.Min(4320, (int)nudH.Value));
+                selFreq = Math.Max(25, Math.Min(240, (int)nudF.Value));
+                customW = selW; customH = selH; customF = selFreq;
+                Log(L.Get("log_custom", selW, selH, selFreq));
+                return;
+            }
+            selFreq = 60;
             selW = 2560; selH = 1440;
             if (rbF.Checked) { selW = 1920; selH = 1080; }
             else if (rbH.Checked) { selW = 1366; selH = 768; }
@@ -790,6 +1245,37 @@ PlaySound((string)null, IntPtr.Zero, 0);
             ReadSelection();
             Step(L.Get("st_restart"));
             worker = new Thread(DoRestart);
+            worker.IsBackground = true;
+            worker.Start();
+        }
+
+        void StartUninstall() {
+            if (busy) return;
+            if (!W95MsgBox.ShowYesNo(L.Get("uninstall_confirm"), "GhostScreen 95", appIcon)) return;
+            busy = true;
+            SetBusyUI(true);
+            Step(L.Get("st_uninstall"));
+            worker = new Thread(DoUninstall);
+            worker.IsBackground = true;
+            worker.Start();
+        }
+
+        void StartReport() {
+            if (busy) return;
+            busy = true;
+            SetBusyUI(true);
+            Step(L.Get("st_report"));
+            worker = new Thread(DoReport);
+            worker.IsBackground = true;
+            worker.Start();
+        }
+
+        void StartCheckUpdate() {
+            if (busy) return;
+            busy = true;
+            SetBusyUI(true);
+            Step(L.Get("checkupdate"));
+            worker = new Thread(DoCheckUpdate);
             worker.IsBackground = true;
             worker.Start();
         }
@@ -893,9 +1379,205 @@ PlaySound((string)null, IntPtr.Zero, 0);
             }
         }
 
+        void DoUninstall() {
+            string win = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+            string pnputil = Path.Combine(win, "System32", "pnputil.exe");
+            try {
+                string work = Path.Combine(Path.GetTempPath(), "GhostScreen-run");
+                Directory.CreateDirectory(work);
+                Extract("Res.devcon.exe", work, "devcon.exe");
+                string devcon = Path.Combine(work, "devcon.exe");
+                Log("Remove virtual display device");
+                Run(devcon, "remove \"Root\\MttVDD\"");
+
+                string root = Path.Combine(win, "System32", "DriverStore", "FileRepository");
+                if (Directory.Exists(root)) {
+                    foreach (string dir in Directory.GetDirectories(root, "mttvdd.inf_*")) {
+                        string inf = Path.Combine(dir, "mttvdd.inf");
+                        if (File.Exists(inf)) Run(pnputil, "/delete-driver \"" + inf + "\" /force");
+                        else Log("!! no inf in " + dir);
+                    }
+                }
+
+                string umdf = Path.Combine(win, "System32", "drivers", "UMDF", "vdd_settings.xml");
+                try { if (File.Exists(umdf)) { File.Delete(umdf); Log("Deleted " + umdf); } } catch (Exception ex) { Log("!! " + ex.Message); }
+
+                Run("schtasks.exe", "/delete /tn \"GhostScreen AutoApply\" /f");
+
+                try { Registry.CurrentUser.DeleteSubKeyTree(@"Software\GhostScreen", false); Log("Registry settings removed"); } catch { }
+
+                Thread.Sleep(3000);
+                Finish(L.Get("fin_uninstall"));
+            } catch (Exception ex) {
+                Log("FATAL: " + ex);
+                Finish(L.Get("fin_error") + ex.Message);
+            }
+        }
+
+        void DoReport() {
+            try {
+                string dir = Path.Combine(Path.GetTempPath(), "GhostScreen-report");
+                if (Directory.Exists(dir)) Directory.Delete(dir, true);
+                Directory.CreateDirectory(dir);
+
+                if (File.Exists(LogFile)) File.Copy(LogFile, Path.Combine(dir, "GhostScreen.log"), true);
+
+                StringBuilder sb = new StringBuilder();
+                sb.AppendLine("GhostScreen 95 - diagnostic report");
+                sb.AppendLine("Version: " + VERSION);
+                sb.AppendLine("Generated: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+                sb.AppendLine();
+                try {
+                    using (System.Management.ManagementObjectSearcher s = new System.Management.ManagementObjectSearcher("SELECT * FROM Win32_OperatingSystem")) {
+                        foreach (System.Management.ManagementObject o in s.Get()) {
+                            sb.AppendLine("OS: " + o["Caption"] + " " + o["Version"] + " (build " + o["BuildNumber"] + ")");
+                            o.Dispose();
+                        }
+                    }
+                } catch (Exception ex) { sb.AppendLine("OS: n/a (" + ex.Message + ")"); }
+                try {
+                    using (System.Management.ManagementObjectSearcher s = new System.Management.ManagementObjectSearcher("SELECT * FROM Win32_Processor")) {
+                        foreach (System.Management.ManagementObject o in s.Get()) {
+                            sb.AppendLine("CPU: " + o["Name"]);
+                            o.Dispose();
+                        }
+                    }
+                } catch { }
+                try {
+                    using (System.Management.ManagementObjectSearcher s = new System.Management.ManagementObjectSearcher("SELECT * FROM Win32_ComputerSystem")) {
+                        foreach (System.Management.ManagementObject o in s.Get()) {
+                            sb.AppendLine("RAM: " + Math.Round(Convert.ToDouble(o["TotalPhysicalMemory"]) / 1048576.0 / 1024.0, 1) + " GB");
+                            sb.AppendLine("Model: " + o["Manufacturer"] + " " + o["Model"]);
+                            o.Dispose();
+                        }
+                    }
+                } catch { }
+                try {
+                    using (System.Management.ManagementObjectSearcher s = new System.Management.ManagementObjectSearcher("SELECT * FROM Win32_VideoController")) {
+                        foreach (System.Management.ManagementObject o in s.Get()) {
+                            sb.AppendLine("Display: " + o["Name"] + " [" + o["VideoModeDescription"] + "]");
+                            o.Dispose();
+                        }
+                    }
+                } catch { }
+                try {
+                    using (System.Management.ManagementObjectSearcher s = new System.Management.ManagementObjectSearcher("SELECT * FROM Win32_LogicalDisk WHERE DriveType=3")) {
+                        foreach (System.Management.ManagementObject o in s.Get()) {
+                            sb.AppendLine("Disk " + o["DeviceID"] + ": " + Math.Round(Convert.ToDouble(o["FreeSpace"]) / 1048576.0 / 1024.0, 1) + " GB free / " + Math.Round(Convert.ToDouble(o["Size"]) / 1048576.0 / 1024.0, 1) + " GB");
+                            o.Dispose();
+                        }
+                    }
+                } catch { }
+                sb.AppendLine();
+                sb.AppendLine("Runtime: .NET " + Environment.Version + ", " + (Environment.Is64BitProcess ? "x64" : "x86") + ", Admin: " + IsAdmin());
+                sb.AppendLine("Virtual display installed: " + IsVddInstalled());
+                sb.AppendLine("Current resolution: " + CurrentResolution());
+                string root = Path.Combine(win(), "System32", "DriverStore", "FileRepository");
+                try {
+                    if (Directory.Exists(root)) {
+                        foreach (string dir2 in Directory.GetDirectories(root, "mttvdd.inf_*")) sb.AppendLine("DriverStore: " + dir2);
+                    }
+                } catch { }
+                try {
+                    using (RegistryKey k = Registry.CurrentUser.OpenSubKey(@"Software\GhostScreen")) {
+                        if (k != null) {
+                            sb.AppendLine();
+                            sb.AppendLine("Settings:");
+                            foreach (string name in k.GetValueNames()) sb.AppendLine("  " + name + " = " + k.GetValue(name));
+                        }
+                    }
+                } catch { }
+                File.WriteAllText(Path.Combine(dir, "system.txt"), sb.ToString(), Encoding.UTF8);
+
+                string zip = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
+                    "GhostScreen-Report-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") + ".zip");
+                ZipFile.CreateFromDirectory(dir, zip);
+                string m = L.Get("report_done", zip);
+                Log(m);
+                SetStatus(m, W95.Green);
+                if (!Program.Quiet) {
+                    try { Invoke(new Action(delegate { W95MsgBox.Show(m, L.Get("report_title"), appIcon, false); })); } catch { }
+                }
+            } catch (Exception ex) {
+                string m = L.Get("report_fail", ex.Message);
+                Log(m);
+                SetStatus(m, Color.Firebrick);
+                if (!Program.Quiet) {
+                    try { Invoke(new Action(delegate { W95MsgBox.Show(m, L.Get("report_title"), appIcon, true); })); } catch { }
+                }
+            }
+            busy = false;
+            SetBusyUI(false);
+        }
+
+        static string win() {
+            return Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+        }
+
+        void DoCheckUpdate() {
+            try {
+                string json = null;
+                using (WebClient wc = new WebClient()) {
+                    wc.Headers["User-Agent"] = "GhostScreen/" + VERSION;
+                    json = wc.DownloadString("https://api.github.com/repos/CultureDigitali/GhostScreen/releases/latest");
+                }
+                string tag = null;
+                int i = json.IndexOf("\"tag_name\":\"");
+                if (i >= 0) {
+                    i += 12;
+                    int j = json.IndexOf('"', i);
+                    if (j > i) tag = json.Substring(i, j - i);
+                }
+                string remote = tag == null ? null : tag.TrimStart('v');
+                if (remote == null || !IsNewer(remote, VERSION)) {
+                    string m = L.Get("update_none", VERSION);
+                    Log(m);
+                    SetStatus(m, W95.Navy);
+                    if (!Program.Quiet) {
+                        try { Invoke(new Action(delegate { W95MsgBox.Show(m, L.Get("update_title"), appIcon, false); })); } catch { }
+                    }
+                } else {
+                    string m = L.Get("update_new", tag);
+                    Log(m);
+                    bool go = false;
+                    if (!Program.Quiet) {
+                        try { Invoke(new Action(delegate { go = W95MsgBox.ShowYesNo(m, L.Get("update_title"), appIcon); })); } catch { }
+                    }
+                    if (go) {
+                        try { Process.Start("https://github.com/CultureDigitali/GhostScreen/releases"); } catch { }
+                    }
+                }
+            } catch (Exception ex) {
+                string m = L.Get("update_fail", ex.Message);
+                Log(m);
+                SetStatus(m, Color.Firebrick);
+                if (!Program.Quiet) {
+                    try { Invoke(new Action(delegate { W95MsgBox.Show(m, L.Get("update_title"), appIcon, true); })); } catch { }
+                }
+            }
+            busy = false;
+            SetBusyUI(false);
+        }
+
+        static bool IsNewer(string a, string b) {
+            string[] pa = a.Split('.');
+            string[] pb = b.Split('.');
+            for (int i = 0; i < 3; i++) {
+                int x = i < pa.Length ? ParseNum(pa[i]) : 0;
+                int y = i < pb.Length ? ParseNum(pb[i]) : 0;
+                if (x != y) return x > y;
+            }
+            return false;
+        }
+
+        static int ParseNum(string s) {
+            int v;
+            return int.TryParse(s, out v) ? v : 0;
+        }
+
         void ApplySelectedResolution() {
             Step(L.Get("st_applying", selW, selH));
-            string res = ApplyResolution(selW, selH, 60);
+            string res = ApplyResolution(selW, selH, selFreq);
             Log("Result: " + res);
             Thread.Sleep(3000);
             Log(L.Get("log_cur_res", CurrentResolution()));
@@ -903,7 +1585,7 @@ PlaySound((string)null, IntPtr.Zero, 0);
 
         void Finish(string msg) {
             busy = false;
-            bool ok = !msg.StartsWith("ERRORE") && !msg.StartsWith("ERROR") && !msg.StartsWith("ERREUR") && !msg.StartsWith("FEHLER") && !msg.StartsWith("错误") && !msg.StartsWith("エラー");
+            bool ok = !msg.StartsWith("ERRORE") && !msg.StartsWith("ERROR") && !msg.StartsWith("ERREUR") && !msg.StartsWith("FEHLER") && !msg.StartsWith("错误") && !msg.StartsWith("エラー") && !msg.StartsWith("ERRO") && !msg.StartsWith("ОШИБКА") && !msg.StartsWith("오류") && !msg.StartsWith("FOUT");
             if (ok) {
                 string cur = CurrentResolution();
                 Log(msg + " " + L.Get("res_now", cur));

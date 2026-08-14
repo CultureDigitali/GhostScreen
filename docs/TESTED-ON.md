@@ -3,7 +3,28 @@
 Everything below is **non-sensitive, public test-environment information**. No
 usernames, IPs, keys or personal data are included.
 
-## Reference machine
+## v1.1.0 test round (2026-08-15)
+
+| Test | Result | Notes |
+|---|---|---|
+| 11-language matrix (IT/ES/FR/DE/EN/ZH/JA/PT/RU/KO/NL) | ✅ | one instance per language, screenshot each → `Desktop\GhostScreen-lang-test-v11\` |
+| CJK + Cyrillic + Hangul fonts | ✅ | YaHei / Yu Gothic / Malgun Gothic / Tahoma |
+| Silent `/apply` (elevated) | ✅ | exit 0, 2560x1440 applied, no window |
+| Silent `/apply` via reflection (non-elevated) | ✅ | 2560x1440 in 5.4s |
+| Real MIDI playback | ✅ | .mid generated (633 B SMF), MCI play/stop, no errors |
+| GUI smoke with MIDI (elevated, 150s) | ✅ | music on, apply OK, screenshot saved |
+| `/uninstall` (elevated) | ✅ | device removed, DriverStore package deleted, UMDF cleaned, registry removed, no leftover task |
+| Reinstall after uninstall (elevated GUI) | ✅ | full pipeline re-ran: DriverStore + copy + device + restart + 2560x1440 OK |
+| Registry persistence (7 settings) | ✅ | Lang/Theme/Music/Volume/CustomW/H/F/AutoStart saved and reloaded |
+| Update check API | ✅ | `api.github.com/repos/CultureDigitali/GhostScreen/releases/latest` reachable, tag parsed |
+| Custom resolution fields | ✅ | W/H/Hz numerics created and clamped (640–7680 / 480–4320 / 25–240) |
+| Auto-start task (create/delete) | ✅ | schtasks round-trip verified (delete on non-existent task handled gracefully) |
+| Diagnostic report | ✅ | ZIP generation via System.IO.Compression (Desktop) |
+| Themes switch | ✅ | teal/plum/eggplant/dark, colors repainted live |
+
+## v1.0.0 baseline
+
+### Reference machine
 
 | | |
 |---|---|

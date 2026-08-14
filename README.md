@@ -49,14 +49,22 @@ because, as far as Windows is concerned, it *is* one.
 |---|---|
 | **One EXE, everything inside** | Driver, catalog, settings, tools — all embedded. No installer, no leftovers. |
 | **Windows 95 soul** | A faithful '95-era UI. Gradient title bar, chiseled buttons, MS Sans Serif. Because why not. |
-| **Choose your resolution** | 2560x1440, 1920x1080, 1366x768, 1280x720 — up to 4K supported by the driver. |
+| **Choose your resolution** | 2560x1440, 1920x1080, 1366x768, 1280x720 — plus **custom W×H×Hz** (up to 4K). |
+| **11 languages** | italiano, español, français, deutsch, english, 中文, 日本語, português, русский, 한국어, nederlands — auto-detected, or from the **Lingua** menu, persisted in the registry. |
+| **Game Boy music** | Chiptune synthesized at runtime **or real MIDI** (generated .mid), with volume control (25–100%). Mute it in File ▾. |
+| **Themes** | Teal (classic), Plum, Eggplant, Dark Pro — like the Windows Plus! packs of 1996. |
+| **System tray ghost** | Minimize to tray; apply / restart from the tray icon. |
+| **Auto-start at logon** | Re-applies your resolution on every login (scheduled task + `/apply`). |
+| **Diagnostic report** | One click → a ZIP on your Desktop with log, system info and driver state. |
+| **Update check** | Optional, offline by default: checks the GitHub release API only when asked. |
+| **Uninstaller** | Menu item or `/uninstall` — removes driver, device, registry and task. |
 | **Self-healing** | Detects a missing or stale driver, reinstalls, restarts the display, retries. Works on a fresh format. |
-| **Zero internet** | Everything runs offline, from the EXE. |
+| **Zero internet** | Everything runs offline, from the EXE (except the optional update check). |
 | **Re-runnable** | You formatted? Run it again. It's idempotent. |
 
 ## Quick start
 
-1. Download `GhostScreen-1.0.0.exe` from [releases](releases/).
+1. Download `GhostScreen-1.1.0.exe` from [releases](releases/).
 2. Right-click → **Run as administrator**.
 3. Pick your resolution. Hit **Installa e Applica**.
 4. Done. Your remote session is now 2560x1440. 🎩
@@ -66,8 +74,8 @@ The 60-second run applies the resolution; a reboot persists it.</sup>
 
 ## Multilingual
 
-The program and the site speak 7 languages, auto-detected from your OS (or picked from
-the **Lingua** menu / saved in the registry):
+The program speaks **11 languages**, auto-detected from your OS (or picked from the
+**Lingua** menu / saved in the registry). The site is published in 7 of them:
 
 | Language | Site |
 |---|---|
@@ -78,8 +86,13 @@ the **Lingua** menu / saved in the registry):
 | English | [index.html](https://culturedigitali.github.io/GhostScreen/) |
 | 中文 | [zh.html](https://culturedigitali.github.io/GhostScreen/zh.html) |
 | 日本語 | [ja.html](https://culturedigitali.github.io/GhostScreen/ja.html) |
+| Português | in-app only |
+| Русский | in-app only |
+| 한국어 | in-app only |
+| Nederlands | in-app only |
 
-Command line: `GhostScreen.exe /lang:de /nosound /quiet` (silent mode for scripts).
+Command line: `GhostScreen.exe /lang:de /nosound /quiet /music:midi /volume:50 /theme:plum`
+(`/apply` applies silently and exits — used by auto-start; `/uninstall` removes everything).
 
 ## Use cases
 
@@ -97,6 +110,7 @@ See [docs/CASE-STUDIES.md](docs/CASE-STUDIES.md) for the full stories.
 - [Product vision](docs/PRODUCT.md)
 - [Case studies](docs/CASE-STUDIES.md)
 - [Test environment & matrix](docs/TESTED-ON.md)
+- [Handoff / developer guide](HANDOFF.md) — everything a new developer or AI agent needs to take over
 - [Build from source](src/build.ps1) — needs only the .NET Framework csc.exe
 
 ## Credits

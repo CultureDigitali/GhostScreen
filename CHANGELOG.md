@@ -1,5 +1,40 @@
 # Changelog
 
+## 1.1.0 (2026-08-15)
+
+**4 new languages (now 11 total)**
+- português, русский, 한국어, nederlands added to the engine and lang.txt
+- Cyrillic/CJK fonts (Tahoma for ru, Malgun Gothic for ko, YaHei/Yu Gothic for zh/ja)
+
+**Custom resolution**
+- "Personalizzata (WxH)" radio + W / H / Hz numeric inputs (640–7680 × 480–4320, 25–240 Hz)
+- Saved to registry, used by /apply
+
+**Music v2**
+- Real MIDI mode: GhostScreen generates a .mid (SMF) at runtime and plays it via MCI (repeat)
+- Volume menu 25/50/75/100% (amplitude-scaled chiptune; setaudio for MIDI)
+- Modes: Chiptune / MIDI / Off, persisted in registry
+
+**New features**
+- System tray ghost icon: show / apply / restart / exit + double-click to restore
+- Minimize hides the window to the tray (it's a ghost now)
+- Auto-start at logon (scheduled task `GhostScreen AutoApply` running `/apply`) — File ▾ menu, self-heals on launch
+- Uninstaller (File ▾ + `/uninstall`): removes device, DriverStore package, UMDF files, task, registry
+- Diagnostic report: ZIP on Desktop with log + WMI system info + driver state + settings
+- Update check (File ▾): GitHub releases API, no telemetry, offline by default
+- Themes: Teal (classic) / Plum / Eggplant / Dark Pro, persisted in registry
+- HiDPI: SetProcessDPIAware for crisp rendering
+
+**CLI additions**
+- `/apply` (silent apply, exits), `/uninstall`, `/music:chip|midi|off`, `/volume:xx`, `/theme:teal|plum|eggplant|dark`
+
+**Bug fixes**
+- MIDI generator: out-of-range index `bass[8]` when emitting the final bass note-off (fixed)
+
+**Tested**
+- 11-language matrix with screenshots, silent /apply, MIDI play/stop, uninstall + reinstall round-trip,
+  registry persistence (7 settings), update-check API — see docs/TESTED-ON.md
+
 ## 1.0.1 (2026-08-15)
 
 **Multilingual (7 languages)**

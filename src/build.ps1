@@ -17,7 +17,7 @@ New-Item -ItemType Directory -Force -Path $relDir | Out-Null
 $csc = "$env:windir\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
 if (-not (Test-Path $csc)) { $csc = "$env:windir\Microsoft.NET\Framework\v4.0.30319\csc.exe" }
 
-$out = Join-Path $relDir 'GhostScreen-1.0.0.exe'
+$out = Join-Path $relDir 'GhostScreen-1.1.0.exe'
 
 Write-Host "Compilo GhostScreen 95 -> $out"
 & $csc /nologo /target:winexe /optimize+ /platform:anycpu `
@@ -34,6 +34,7 @@ Write-Host "Compilo GhostScreen 95 -> $out"
     /resource:$(Join-Path $assetDir 'logo.png'),Res.logo.png `
     /resource:$(Join-Path $srcDir 'lang.txt'),Res.lang.txt `
     /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Management.dll `
+    /r:System.IO.Compression.dll /r:System.IO.Compression.FileSystem.dll `
     $(Join-Path $srcDir 'GhostScreen.cs')
 
 if ($LASTEXITCODE -ne 0) { throw "Compilazione fallita (exit $LASTEXITCODE)" }
