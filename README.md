@@ -96,6 +96,7 @@ See [docs/CASE-STUDIES.md](docs/CASE-STUDIES.md) for the full stories.
 
 - [Product vision](docs/PRODUCT.md)
 - [Case studies](docs/CASE-STUDIES.md)
+- [Test environment & matrix](docs/TESTED-ON.md)
 - [Build from source](src/build.ps1) — needs only the .NET Framework csc.exe
 
 ## Credits
