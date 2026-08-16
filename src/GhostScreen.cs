@@ -547,6 +547,181 @@ namespace GhostScreen {
         }
     }
 
+    // ============================================================
+    // DemoTour: first-run wizard with Win95 look
+    // ============================================================
+    class DemoTour : Form {
+        static int step;
+        static Label lblTitle, lblText, lblPage;
+        static W95Button btnNext, btnBack, btnCancel;
+        static PictureBox pic;
+        static Icon appIcon;
+        static Font tourFont = new Font("MS Sans Serif", 8F);
+
+        static string[][] pages = new string[][] {
+            new string[] {
+                "Welcome to GhostScreen 95!",
+                "This wizard will guide you through\n" +
+                "the features of your new virtual\n" +
+                "display software.\n\n" +
+                "Click Next to continue."
+            },
+            new string[] {
+                "What is GhostScreen?",
+                "GhostScreen creates a virtual display\n" +
+                "on headless PCs (no physical monitor\n" +
+                "connected). Perfect for remote desktop,\n" +
+                "media servers, and automation."
+            },
+            new string[] {
+                "Select Resolution",
+                "Choose your target resolution from\n" +
+                "the main window. You can pick a\n" +
+                "preset or enter custom dimensions.\n\n" +
+                "Higher resolution = more workspace."
+            },
+            new string[] {
+                "Install & Apply",
+                "Click 'Install' to install the virtual\n" +
+                "display driver, then 'Apply' to set\n" +
+                "the resolution.\n\n" +
+                "The driver runs silently in the background."
+            },
+            new string[] {
+                "Music & Themes",
+                "Enjoy chiptune or MIDI music while\n" +
+                "you work! Switch themes from the\n" +
+                "File menu: Teal, Plum, Eggplant, Dark.\n\n" +
+                "You can also adjust the volume."
+            },
+            new string[] {
+                "You're All Set!",
+                "GhostScreen 95 is ready to use.\n\n" +
+                "The virtual display will stay active\n" +
+                "until you restart your PC.\n\n" +
+                "Enjoy your invisible monitor!"
+            }
+        };
+
+        public static void Run(Form parent, Icon icon) {
+            appIcon = icon;
+            step = 0;
+            using (DemoTour tour = new DemoTour()) {
+                tour.ShowDialog(parent);
+            }
+        }
+
+        DemoTour() {
+            FormBorderStyle = FormBorderStyle.None;
+            BackColor = W95.Face;
+            ClientSize = new Size(420, 260);
+            StartPosition = FormStartPosition.CenterParent;
+            DoubleBuffered = true;
+
+            // Ghost monitor icon
+            pic = new PictureBox();
+            pic.Location = new Point(16, 44);
+            pic.Size = new Size(48, 48);
+            pic.BackColor = W95.Face;
+            if (appIcon != null) pic.Image = new Icon(appIcon, 48, 48).ToBitmap();
+
+            lblTitle = new Label();
+            lblTitle.Font = new Font("MS Sans Serif", 9F, FontStyle.Bold);
+            lblTitle.ForeColor = W95.Dark;
+            lblTitle.BackColor = W95.Face;
+            lblTitle.Location = new Point(72, 42);
+            lblTitle.Size = new Size(330, 20);
+
+            lblText = new Label();
+            lblText.Font = tourFont;
+            lblText.ForeColor = W95.Dark;
+            lblText.BackColor = W95.Face;
+            lblText.Location = new Point(72, 68);
+            lblText.Size = new Size(330, 110);
+            lblText.TextAlign = ContentAlignment.TopLeft;
+
+            lblPage = new Label();
+            lblPage.Font = tourFont;
+            lblPage.ForeColor = Color.FromArgb(128, 128, 128);
+            lblPage.BackColor = W95.Face;
+            lblPage.TextAlign = ContentAlignment.MiddleCenter;
+            lblPage.Size = new Size(400, 16);
+
+            btnCancel = new W95Button();
+            btnCancel.Text = "Cancel";
+            btnCancel.Font = tourFont;
+            btnCancel.Size = new Size(80, 26);
+            btnCancel.Location = new Point(16, ClientSize.Height - 40);
+            btnCancel.Click += delegate { Close(); };
+
+            btnBack = new W95Button();
+            btnBack.Text = "< Back";
+            btnBack.Font = tourFont;
+            btnBack.Size = new Size(80, 26);
+            btnBack.Location = new Point(240, ClientSize.Height - 40);
+            btnBack.Enabled = false;
+            btnBack.Click += delegate { step--; UpdatePage(); };
+
+            btnNext = new W95Button();
+            btnNext.Text = "Next >";
+            btnNext.Font = tourFont;
+            btnNext.Size = new Size(80, 26);
+            btnNext.Location = new Point(324, ClientSize.Height - 40);
+            btnNext.Click += delegate {
+                if (step < pages.Length - 1) { step++; UpdatePage(); }
+                else Close();
+            };
+
+            Controls.Add(pic);
+            Controls.Add(lblTitle);
+            Controls.Add(lblText);
+            Controls.Add(lblPage);
+            Controls.Add(btnCancel);
+            Controls.Add(btnBack);
+            Controls.Add(btnNext);
+
+            UpdatePage();
+        }
+
+        void UpdatePage() {
+            lblTitle.Text = pages[step][0];
+            lblText.Text = pages[step][1];
+            lblPage.Text = "Step " + (step + 1) + " of " + pages.Length;
+            btnBack.Enabled = step > 0;
+            btnNext.Text = (step == pages.Length - 1) ? "Finish" : "Next >";
+            Invalidate();
+        }
+
+        protected override void OnPaint(PaintEventArgs e) {
+            base.OnPaint(e);
+            Graphics g = e.Graphics;
+            ControlPaint.DrawBorder3D(g, ClientRectangle, Border3DStyle.Raised, Border3DSide.All);
+            // Title bar
+            Rectangle tr = new Rectangle(3, 3, ClientSize.Width - 6, 20);
+            using (SolidBrush tb = new SolidBrush(W95.Title1))
+                g.FillRectangle(tb, tr);
+            using (SolidBrush tg = new SolidBrush(W95.Title2))
+                g.FillRectangle(tg, tr.X, tr.Y, tr.Width, 2);
+            using (Font f = new Font("MS Sans Serif", 8F, FontStyle.Bold))
+                g.DrawString("GhostScreen 95 - Tour", f, Brushes.White, 8, 5);
+            // Progress dots
+            int dotX = (ClientSize.Width - pages.Length * 14) / 2;
+            for (int i = 0; i < pages.Length; i++) {
+                Brush b = (i <= step) ? Brushes.White : new SolidBrush(W95.Shadow);
+                g.FillEllipse(b, dotX + i * 14, ClientSize.Height - 58, 8, 8);
+                if (i != step) b.Dispose();
+            }
+        }
+
+        protected override void OnMouseDown(MouseEventArgs e) {
+            base.OnMouseDown(e);
+            if (e.Y <= 22) {
+                Rectangle cr = new Rectangle(ClientSize.Width - 24, 4, 18, 16);
+                if (cr.Contains(e.Location)) Close();
+            }
+        }
+    }
+
     class MainForm : Form {
         const string VERSION = "1.1.0";
 
@@ -625,9 +800,11 @@ namespace GhostScreen {
 
             // ---- settings from registry ----
             string code = L.Detect();
+            bool isFirstRun = true;
             try {
                 using (RegistryKey k = Registry.CurrentUser.OpenSubKey(@"Software\GhostScreen")) {
                     if (k != null) {
+                        isFirstRun = false;
                         string v = k.GetValue("Lang") as string;
                         if (v != null && v.Length == 2) code = v;
                         string th = k.GetValue("Theme") as string;
@@ -664,39 +841,35 @@ namespace GhostScreen {
             Text = "GhostScreen 95";
             FormBorderStyle = FormBorderStyle.None;
             BackColor = W95.Face;
-            ClientSize = new Size(640, 576);
+            ClientSize = new Size(648, 584);
             StartPosition = FormStartPosition.CenterScreen;
             DoubleBuffered = true;
             Icon = appIcon;
 
+            // ---- title bar height ----
+            int TB = 24;
+
             // ---- header banner ----
             if (banner != null) {
-                int bh = banner.Width / 2;
-                int by = Math.Max(0, (banner.Height - bh) / 2);
-                if (by + bh > banner.Height) { bh = banner.Height; by = 0; }
-                Rectangle src = new Rectangle(0, by, banner.Width, bh);
-                Bitmap head = new Bitmap(624, 140);
-                using (Graphics g = Graphics.FromImage(head))
-                    g.DrawImage(banner, new Rectangle(0, 0, 624, 140), src, GraphicsUnit.Pixel);
                 pbHead = new PictureBox();
-                pbHead.Image = head;
-                pbHead.Location = new Point(8, 46);
-                pbHead.Size = new Size(624, 140);
+                pbHead.Image = banner;
+                pbHead.Location = new Point(4, TB + 4);
+                pbHead.Size = new Size(ClientSize.Width - 8, 140);
                 pbHead.BackColor = W95.Teal;
-                pbHead.SizeMode = PictureBoxSizeMode.Normal;
+                pbHead.SizeMode = PictureBoxSizeMode.StretchImage;
             }
 
             // ---- menu bar ----
             Panel menuBar = new Panel();
-            menuBar.Location = new Point(0, 22);
-            menuBar.Size = new Size(640, 22);
+            menuBar.Location = new Point(4, TB + 148);
+            menuBar.Size = new Size(ClientSize.Width - 8, 22);
             menuBar.BackColor = W95.Face;
 
-            btnFile = NewMenuBtn(4, 2, 36);
+            btnFile = NewMenuBtn(4, 2, 40);
             btnFile.Click += delegate { cmFile.Show(menuBar, new Point(btnFile.Left, btnFile.Bottom + 2)); };
-            btnLang = NewMenuBtn(42, 2, 52);
+            btnLang = NewMenuBtn(46, 2, 56);
             btnLang.Click += delegate { cmLang.Show(menuBar, new Point(btnLang.Left, btnLang.Bottom + 2)); };
-            btnHelp = NewMenuBtn(96, 2, 22);
+            btnHelp = NewMenuBtn(104, 2, 24);
             btnHelp.Click += delegate { cmHelp.Show(menuBar, new Point(btnHelp.Left, btnHelp.Bottom + 2)); };
 
             cmFile = NewMenu();
@@ -707,45 +880,45 @@ namespace GhostScreen {
             menuBar.Controls.Add(btnLang);
             menuBar.Controls.Add(btnHelp);
 
-            // ---- resolution group ----
+            // ---- resolution group (left) ----
             GroupBox gRes = new GroupBox();
             gResBox = gRes;
             gRes.Text = L.Get("grp_res");
             gRes.Font = Font;
             gRes.ForeColor = W95.Dark;
             gRes.BackColor = W95.Face;
-            gRes.Location = new Point(12, 192);
-            gRes.Size = new Size(352, 166);
+            gRes.Location = new Point(12, TB + 176);
+            gRes.Size = new Size(356, 190);
 
             rbQ = NewRadio(16, 28); rbQ.Checked = true;
-            rbF = NewRadio(16, 56);
-            rbH = NewRadio(16, 84);
-            rbV = NewRadio(16, 112);
+            rbF = NewRadio(16, 54);
+            rbH = NewRadio(16, 80);
+            rbV = NewRadio(16, 106);
 
-            rbC = NewRadio(170, 28);
+            rbC = NewRadio(180, 28);
             rbC.CheckedChanged += delegate {
                 bool on = rbC.Checked;
                 nudW.Enabled = on; nudH.Enabled = on; nudF.Enabled = on;
             };
-            lblW = NewSmallLabel(170, 52, 90);
-            nudW = NewNud(262, 50, 96, 640, 7680);
-            lblH = NewSmallLabel(170, 76, 90);
-            nudH = NewNud(262, 74, 96, 480, 4320);
-            lblF = NewSmallLabel(170, 100, 90);
-            nudF = NewNud(262, 98, 96, 25, 240);
+            lblW = NewSmallLabel(180, 54, 80);
+            nudW = NewNud(264, 52, 80, 640, 7680);
+            lblH = NewSmallLabel(180, 80, 80);
+            nudH = NewNud(264, 78, 80, 480, 4320);
+            lblF = NewSmallLabel(180, 106, 80);
+            nudF = NewNud(264, 104, 80, 25, 240);
             nudW.Value = Math.Max(640, Math.Min(7680, customW));
             nudH.Value = Math.Max(480, Math.Min(4320, customH));
             nudF.Value = Math.Max(25, Math.Min(240, customF));
-            bool cOn = false;
-            nudW.Enabled = cOn; nudH.Enabled = cOn; nudF.Enabled = cOn;
+            nudW.Enabled = false; nudH.Enabled = false; nudF.Enabled = false;
 
             Label note = new Label();
             noteText = note;
             note.Font = Font;
             note.ForeColor = Color.FromArgb(80, 80, 80);
             note.BackColor = W95.Face;
-            note.Location = new Point(16, 140);
-            note.AutoSize = true;
+            note.Location = new Point(16, 136);
+            note.Size = new Size(320, 40);
+            note.Text = L.Get("res_note");
             gRes.Controls.Add(rbQ); gRes.Controls.Add(rbF); gRes.Controls.Add(rbH); gRes.Controls.Add(rbV);
             gRes.Controls.Add(rbC);
             gRes.Controls.Add(lblW); gRes.Controls.Add(nudW);
@@ -753,26 +926,30 @@ namespace GhostScreen {
             gRes.Controls.Add(lblF); gRes.Controls.Add(nudF);
             gRes.Controls.Add(note);
 
-            // ---- actions ----
-            btnInstall = NewButton(380, 210, 124, 28);
+            // ---- actions (right side, stacked) ----
+            int actX = 380, actW = 130, actH = 30, actGap = 36;
+            btnInstall = NewButton(actX, TB + 176, actW, actH);
             btnInstall.DefaultButton = true;
             btnInstall.Click += delegate { StartInstall(); };
-            btnApply = NewButton(380, 246, 124, 28);
+
+            btnApply = NewButton(actX, TB + 176 + actGap, actW, actH);
             btnApply.Click += delegate { StartApply(); };
-            btnRestart = NewButton(380, 282, 124, 28);
+
+            btnRestart = NewButton(actX, TB + 176 + actGap * 2, actW, actH);
             btnRestart.Click += delegate { StartRestart(); };
-            btnAbout = NewButton(380, 318, 124, 28);
+
+            btnAbout = NewButton(actX, TB + 176 + actGap * 3, actW, actH);
             btnAbout.Click += delegate { ShowAbout(); };
 
-            // ---- log ----
+            // ---- log area ----
             GroupBox gLog = new GroupBox();
             gLogBox = gLog;
             gLog.Text = L.Get("grp_log");
             gLog.Font = Font;
             gLog.ForeColor = W95.Dark;
             gLog.BackColor = W95.Face;
-            gLog.Location = new Point(12, 366);
-            gLog.Size = new Size(616, 172);
+            gLog.Location = new Point(12, TB + 374);
+            gLog.Size = new Size(ClientSize.Width - 24, 158);
 
             txtLog = new TextBox();
             txtLog.Multiline = true;
@@ -781,14 +958,14 @@ namespace GhostScreen {
             txtLog.BorderStyle = BorderStyle.Fixed3D;
             txtLog.BackColor = Color.White;
             txtLog.Font = new Font("Courier New", 8.5F);
-            txtLog.Location = new Point(16, 36);
-            txtLog.Size = new Size(584, 122);
+            txtLog.Location = new Point(14, 28);
+            txtLog.Size = new Size(ClientSize.Width - 52, 120);
             gLog.Controls.Add(txtLog);
 
             // ---- status bar ----
             Panel statusBar = new Panel();
-            statusBar.Location = new Point(0, 548);
-            statusBar.Size = new Size(640, 28);
+            statusBar.Location = new Point(0, ClientSize.Height - 28);
+            statusBar.Size = new Size(ClientSize.Width, 28);
             statusBar.BackColor = W95.Face;
 
             lblStatus = new Label();
@@ -803,21 +980,23 @@ namespace GhostScreen {
             lblSeg.Font = Font;
             lblSeg.ForeColor = W95.Dark;
             lblSeg.BackColor = W95.Face;
-            lblSeg.Location = new Point(538, 7);
+            lblSeg.Location = new Point(ClientSize.Width - 110, 7);
             lblSeg.AutoSize = true;
 
             statusBar.Controls.Add(lblStatus);
             statusBar.Controls.Add(lblSeg);
 
+            // ---- add controls in order ----
             if (pbHead != null) Controls.Add(pbHead);
             Controls.Add(menuBar);
             Controls.Add(gRes);
             Controls.Add(gLog);
-            Controls.Add(btnInstall); Controls.Add(btnApply); Controls.Add(btnRestart); Controls.Add(btnAbout);
+            Controls.Add(btnInstall); Controls.Add(btnApply);
+            Controls.Add(btnRestart); Controls.Add(btnAbout);
             Controls.Add(statusBar);
 
-            minRect = new Rectangle(ClientSize.Width - 42, 3, 18, 15);
-            closeRect = new Rectangle(ClientSize.Width - 22, 3, 18, 15);
+            minRect = new Rectangle(ClientSize.Width - 46, 4, 18, 16);
+            closeRect = new Rectangle(ClientSize.Width - 24, 4, 18, 16);
             AcceptButton = btnInstall;
 
             // ---- tray ----
@@ -841,6 +1020,12 @@ namespace GhostScreen {
                 string cmd = "\"" + Application.ExecutablePath + "\" /apply";
                 Run("schtasks.exe", "/create /tn \"GhostScreen AutoApply\" /tr \"" + cmd + "\" /sc onlogon /rl highest /f");
             }
+
+            // ---- demo tour on first launch ----
+            if (isFirstRun && !Program.Quiet) {
+                DemoTour.Run(this, appIcon);
+            }
+
             if (IsVddInstalled()) {
                 Log(L.Get("log_drv_inst"));
                 StartApply();
@@ -1162,20 +1347,42 @@ namespace GhostScreen {
         protected override void OnPaint(PaintEventArgs e) {
             base.OnPaint(e);
             Graphics g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.None;
+            g.InterpolationMode = InterpolationMode.NearestNeighbor;
+
+            // Window frame
             ControlPaint.DrawBorder3D(g, ClientRectangle, Border3DStyle.Raised, Border3DSide.All);
-            Rectangle tr = new Rectangle(2, 2, ClientSize.Width - 4, 20);
-            using (LinearGradientBrush b = new LinearGradientBrush(tr, W95.Title1, W95.Title2, 90F))
-                g.FillRectangle(b, tr);
-            if (appIcon != null) g.DrawIcon(appIcon, new Rectangle(7, 4, 16, 16));
-            g.DrawString(L.Get("title"), new Font(Font, FontStyle.Bold), Brushes.White, 27, 5);
+
+            // Title bar
+            Rectangle tr = new Rectangle(3, 3, ClientSize.Width - 6, 20);
+            using (SolidBrush tb = new SolidBrush(W95.Title1))
+                g.FillRectangle(tb, tr);
+            // Gradient accent (top 2px lighter)
+            using (SolidBrush tg = new SolidBrush(W95.Title2))
+                g.FillRectangle(tg, tr.X, tr.Y, tr.Width, 2);
+
+            // Icon
+            if (appIcon != null) g.DrawIcon(appIcon, new Rectangle(6, 4, 16, 16));
+
+            // Title text (white, bold, shadow)
+            Font fTitle = new Font("MS Sans Serif", 8F, FontStyle.Bold);
+            using (SolidBrush sb = new SolidBrush(Color.FromArgb(80, 0, 0, 0)))
+                g.DrawString("GhostScreen 95", fTitle, sb, 27, 6);
+            g.DrawString("GhostScreen 95", fTitle, Brushes.White, 26, 5);
+
+            // Close button (3D raised)
             ControlPaint.DrawButton(g, closeRect, ButtonState.Normal);
-            ControlPaint.DrawButton(g, minRect, ButtonState.Normal);
             using (Pen p = new Pen(W95.Dark)) {
                 int cx = closeRect.Left + 4, cy = closeRect.Top + 3;
                 g.DrawLine(p, cx, cy, cx + 9, cy + 9);
                 g.DrawLine(p, cx + 9, cy, cx, cy + 9);
-                g.DrawLine(p, minRect.Left + 3, minRect.Top + 10, minRect.Left + 13, minRect.Top + 10);
             }
+            // Minimize button
+            ControlPaint.DrawButton(g, minRect, ButtonState.Normal);
+            using (Pen p = new Pen(W95.Dark)) {
+                g.DrawLine(p, minRect.Left + 3, minRect.Top + 11, minRect.Left + 13, minRect.Top + 11);
+            }
+            fTitle.Dispose();
         }
 
         protected override void OnMouseDown(MouseEventArgs e) {
